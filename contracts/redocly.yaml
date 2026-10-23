@@ -1,0 +1,17 @@
+# Configuración del lint del contrato. Se ejecuta en CI (contracts.yml).
+extends:
+  - recommended
+
+apis:
+  xperp:
+    root: openapi/openapi.yaml
+  partners:
+    root: partners.yaml
+
+rules:
+  info-license: off
+  operation-operationId: error
+  operation-4xx-response: error
+  no-unused-components: warn
+  # Los servidores declarados son de desarrollo local a propósito.
+  no-server-example.com: off

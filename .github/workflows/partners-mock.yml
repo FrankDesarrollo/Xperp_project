@@ -1,0 +1,24 @@
+name: partners-mock
+
+on:
+  pull_request:
+    paths: ["partners-mock/**", "contracts/partners.yaml", ".github/workflows/partners-mock.yml"]
+  push:
+    branches: [main]
+    paths: ["partners-mock/**", "contracts/partners.yaml", ".github/workflows/partners-mock.yml"]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: partners-mock
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+      - name: Verify
+        run: ./mvnw -B verify

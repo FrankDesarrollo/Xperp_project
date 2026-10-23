@@ -1,0 +1,9 @@
+# Perfil dev: desarrollo local.
+logging:
+  level:
+    com.xperp: DEBUG
+    org.springframework.modulith: DEBUG
+
+spring:
+  jpa:
+    show-sql: false

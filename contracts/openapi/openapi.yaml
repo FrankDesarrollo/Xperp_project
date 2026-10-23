@@ -1,0 +1,64 @@
+# Contrato raíz de la API de Xperp. Referencia: AGENTS.md, sección 7.
+# Cada módulo tiene su archivo en paths/ y schemas/ para no editar el mismo archivo a la vez.
+# Un cambio de contrato va en su propio PR (contract/<modulo>-<descripcion>).
+openapi: 3.1.0
+info:
+  title: Xperp API
+  version: 0.1.0
+  description: |
+    API REST del ERP Xperp. Convenciones:
+    - Recursos en plural y kebab-case; JSON en snake_case.
+    - Paginación: `?page=1&size=20` → `{ items, total, page, size }`.
+    - Errores: `{ code, message, details }` con el código HTTP correcto.
+    - Fechas ISO 8601 con zona horaria. Montos como string decimal (`"125000.00"`).
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Desarrollo local
+security:
+  - bearerAuth: []
+tags:
+  - name: auth
+    description: Autenticación y sesión
+
+paths:
+  /auth/login:
+    $ref: paths/auth.yaml#/login
+  /auth/me:
+    $ref: paths/auth.yaml#/me
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  # Cada esquema se registra aquí para que el generador conserve su nombre.
+  # Los archivos de paths/ referencian siempre ../openapi.yaml#/components/...
+  schemas:
+    Error:
+      $ref: schemas/common.yaml#/Error
+    PageMeta:
+      $ref: schemas/common.yaml#/PageMeta
+    Money:
+      $ref: schemas/common.yaml#/Money
+    Role:
+      $ref: schemas/auth.yaml#/Role
+    LoginRequest:
+      $ref: schemas/auth.yaml#/LoginRequest
+    LoginResponse:
+      $ref: schemas/auth.yaml#/LoginResponse
+    CurrentUser:
+      $ref: schemas/auth.yaml#/CurrentUser
+
+  responses:
+    BadRequest:
+      $ref: schemas/common.yaml#/responses/BadRequest
+    Unauthorized:
+      $ref: schemas/common.yaml#/responses/Unauthorized
+    Forbidden:
+      $ref: schemas/common.yaml#/responses/Forbidden
+    NotFound:
+      $ref: schemas/common.yaml#/responses/NotFound
+    Conflict:
+      $ref: schemas/common.yaml#/responses/Conflict

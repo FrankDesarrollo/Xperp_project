@@ -1,0 +1,24 @@
+# Propiedad de módulos. Referencia: AGENTS.md, sección 12.1.
+# PENDIENTE: confirmar quién es el integrante A (dominio e IA) y quién el B
+# (experiencia, simulación e integración), y reemplazar USUARIO_A y USUARIO_B
+# por los usuarios de GitHub. Mientras tengan estos marcadores, GitHub ignora las líneas.
+
+/backend/src/main/java/com/xperp/catalog/        @USUARIO_A
+/backend/src/main/java/com/xperp/inventory/      @USUARIO_A
+/backend/src/main/java/com/xperp/sales/          @USUARIO_A
+/backend/src/main/java/com/xperp/purchasing/     @USUARIO_A
+/backend/src/main/java/com/xperp/logistics/      @USUARIO_A
+/backend/src/main/java/com/xperp/finance/        @USUARIO_A
+/backend/src/main/java/com/xperp/ai/             @USUARIO_A
+/backend/src/main/java/com/xperp/simulation/     @USUARIO_B
+/backend/src/main/java/com/xperp/partners/       @USUARIO_B
+/backend/src/main/java/com/xperp/notifications/  @USUARIO_B
+/backend/src/main/java/com/xperp/dashboard/      @USUARIO_B
+/backend/src/main/resources/demo/                @USUARIO_B
+/partners-mock/                                  @USUARIO_B
+/frontend/                                       @USUARIO_B
+/backend/src/main/java/com/xperp/shared/         @USUARIO_A @USUARIO_B
+/contracts/                                      @USUARIO_A @USUARIO_B
+/AGENTS.md                                       @USUARIO_A @USUARIO_B
+/docker-compose.yml                              @USUARIO_A @USUARIO_B
+/.github/                                        @USUARIO_A @USUARIO_B

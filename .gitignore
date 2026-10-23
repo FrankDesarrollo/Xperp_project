@@ -1,0 +1,36 @@
+# Entorno
+.env
+.env.*
+!.env.example
+
+# Java / Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+*.class
+*.log
+hs_err_pid*
+
+# Node
+node_modules/
+.svelte-kit/
+build/
+coverage/
+playwright-report/
+test-results/
+vite.config.ts.timestamp-*
+
+# Código generado desde el contrato (se regenera en cada build)
+frontend/src/lib/api/schema.d.ts
+contracts/dist/
+
+# IDE y sistema operativo
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.DS_Store
+Thumbs.db
+
+# Claude Code (configuración local de cada persona)
+.claude/settings.local.json
