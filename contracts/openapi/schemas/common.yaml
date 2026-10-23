@@ -1,0 +1,68 @@
+# Esquemas y respuestas compartidos por todos los módulos.
+
+Error:
+  type: object
+  required: [code, message]
+  properties:
+    code:
+      type: string
+      description: Código de error estable, en inglés y snake_case (por ejemplo, `validation_error`)
+    message:
+      type: string
+      description: Mensaje legible en español
+    details:
+      type: object
+      additionalProperties: true
+
+PageMeta:
+  type: object
+  required: [total, page, size]
+  properties:
+    total:
+      type: integer
+      format: int64
+    page:
+      type: integer
+      minimum: 1
+    size:
+      type: integer
+      minimum: 1
+      maximum: 200
+
+Money:
+  type: string
+  pattern: '^-?\d+\.\d{2}$'
+  description: Monto en COP como string decimal con 2 decimales
+  examples: ["125000.00"]
+
+responses:
+  BadRequest:
+    description: Solicitud inválida
+    content:
+      application/json:
+        schema:
+          $ref: "#/Error"
+  Unauthorized:
+    description: No autenticado o token inválido
+    content:
+      application/json:
+        schema:
+          $ref: "#/Error"
+  Forbidden:
+    description: El rol no tiene permiso
+    content:
+      application/json:
+        schema:
+          $ref: "#/Error"
+  NotFound:
+    description: Recurso no encontrado
+    content:
+      application/json:
+        schema:
+          $ref: "#/Error"
+  Conflict:
+    description: Conflicto con el estado actual del recurso
+    content:
+      application/json:
+        schema:
+          $ref: "#/Error"

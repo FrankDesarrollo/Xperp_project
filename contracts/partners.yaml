@@ -1,0 +1,296 @@
+# API de partners-mock: proveedores (PRV-01..09) y transportadoras (TRP-01..03) simulados.
+# Referencia: AGENTS.md, secciones 7.3 y 7.4. Los webhooks de vuelta al backend se describen
+# en openapi/ (módulo webhooks) cuando se implementen.
+openapi: 3.1.0
+info:
+  title: Xperp partners-mock API
+  version: 0.1.0
+servers:
+  - url: http://localhost:8101
+    description: Desarrollo local
+security:
+  - partnersToken: []
+tags:
+  - name: suppliers
+    description: Proveedores simulados
+  - name: carriers
+    description: Transportadoras simuladas
+
+paths:
+  /suppliers/{code}/orders:
+    parameters:
+      - $ref: "#/components/parameters/SupplierCode"
+    post:
+      tags: [suppliers]
+      operationId: createSupplierOrder
+      summary: Recibe una orden de compra
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupplierOrderRequest"
+      responses:
+        "201":
+          description: Orden recibida; la respuesta del proveedor llega después por webhook
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierOrderReceipt"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+
+  /suppliers/{code}/orders/{external_id}:
+    parameters:
+      - $ref: "#/components/parameters/SupplierCode"
+      - name: external_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [suppliers]
+      operationId: getSupplierOrder
+      summary: Estado de una orden
+      responses:
+        "200":
+          description: Orden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierOrder"
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /suppliers/{code}/catalog:
+    parameters:
+      - $ref: "#/components/parameters/SupplierCode"
+    get:
+      tags: [suppliers]
+      operationId: getSupplierCatalog
+      summary: Precios vigentes del proveedor (aquí aparece el alza del día 10)
+      responses:
+        "200":
+          description: Catálogo
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CatalogItem"
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /carriers/{code}/quotes:
+    parameters:
+      - $ref: "#/components/parameters/CarrierCode"
+    post:
+      tags: [carriers]
+      operationId: quoteShipment
+      summary: Cotiza un envío
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuoteRequest"
+      responses:
+        "200":
+          description: Cotización
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quote"
+        "422":
+          $ref: "#/components/responses/Error"
+
+  /carriers/{code}/shipments:
+    parameters:
+      - $ref: "#/components/parameters/CarrierCode"
+    post:
+      tags: [carriers]
+      operationId: createShipment
+      summary: Crea un envío y devuelve el número de guía
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShipmentRequest"
+      responses:
+        "201":
+          description: Envío creado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShipmentReceipt"
+        "400":
+          $ref: "#/components/responses/Error"
+
+components:
+  securitySchemes:
+    partnersToken:
+      type: http
+      scheme: bearer
+      description: "`Authorization: Bearer <PARTNERS_API_TOKEN>`"
+
+  parameters:
+    SupplierCode:
+      name: code
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^PRV-[0-9]{2}$"
+    CarrierCode:
+      name: code
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^TRP-[0-9]{2}$"
+
+  responses:
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+
+    OrderItem:
+      type: object
+      required: [sku, quantity]
+      properties:
+        sku:
+          type: string
+        quantity:
+          type: integer
+          minimum: 1
+        unit_cost:
+          type: string
+          description: Monto como string decimal
+
+    SupplierOrderRequest:
+      type: object
+      required: [po_number, warehouse_code, items]
+      properties:
+        po_number:
+          type: string
+          examples: ["OC-2026-000012"]
+        warehouse_code:
+          type: string
+          examples: ["CAL-01"]
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/OrderItem"
+
+    SupplierOrderReceipt:
+      type: object
+      required: [external_id, status]
+      properties:
+        external_id:
+          type: string
+          examples: ["PRV02-00045"]
+        status:
+          type: string
+          const: received
+
+    SupplierOrder:
+      type: object
+      required: [external_id, po_number, status]
+      properties:
+        external_id:
+          type: string
+        po_number:
+          type: string
+        status:
+          type: string
+          enum: [received, confirmed, rejected, delayed, shipped, delivered]
+        expected_at:
+          type: [string, "null"]
+          format: date-time
+        reason:
+          type: [string, "null"]
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItem"
+
+    CatalogItem:
+      type: object
+      required: [sku, unit_cost, valid_from]
+      properties:
+        sku:
+          type: string
+        unit_cost:
+          type: string
+        valid_from:
+          type: string
+          format: date-time
+
+    QuoteRequest:
+      type: object
+      required: [origin_city, destination_city, weight_kg]
+      properties:
+        origin_city:
+          type: string
+        destination_city:
+          type: string
+        weight_kg:
+          type: number
+          exclusiveMinimum: 0
+
+    Quote:
+      type: object
+      required: [service, cost, eta_days]
+      properties:
+        service:
+          type: string
+        cost:
+          type: string
+        eta_days:
+          type: integer
+          minimum: 1
+
+    ShipmentRequest:
+      type: object
+      required: [sales_order_number, origin_city, destination_city, weight_kg, service]
+      properties:
+        sales_order_number:
+          type: string
+          examples: ["PV-2026-000001"]
+        origin_city:
+          type: string
+        destination_city:
+          type: string
+        weight_kg:
+          type: number
+          exclusiveMinimum: 0
+        service:
+          type: string
+
+    ShipmentReceipt:
+      type: object
+      required: [tracking_number]
+      properties:
+        tracking_number:
+          type: string
+          examples: ["TRP01-0000231"]

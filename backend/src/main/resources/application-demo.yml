@@ -1,0 +1,6 @@
+# Perfil demo: carga la empresa demo (DemoDataLoader) cuando la base está vacía.
+# Datos en classpath:demo/ (AGENTS.md, sección 2.14).
+xperp:
+  demo:
+    enabled: true
+    data-location: classpath:demo/

@@ -1,0 +1,81 @@
+# Infraestructura local de Xperp. Referencia: AGENTS.md, secciones 4, 5.4 y 15.
+#   Solo infraestructura:  docker compose up -d db mailpit partners-mock
+#   Todo en contenedores:  docker compose up -d --build
+#   Ollama (opcional):     docker compose --profile ollama up -d ollama
+
+name: xperp
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-xperp}
+      POSTGRES_USER: ${POSTGRES_USER:-xperp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-xperp}
+      TZ: ${TZ:-America/Bogota}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "8025:8025" # interfaz web
+      - "1025:1025" # SMTP
+
+  partners-mock:
+    build:
+      context: .
+      dockerfile: partners-mock/Dockerfile
+    env_file: .env
+    environment:
+      BACKEND_URL: http://backend:8080
+    ports:
+      - "8101:8101"
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file: .env
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-xperp}
+      PARTNERS_API_URL: http://partners-mock:8101
+      MAIL_HOST: mailpit
+      OLLAMA_BASE_URL: http://ollama:11434
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:8080/api/v1}
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ollama"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+
+volumes:
+  db-data:
+  ollama-data:

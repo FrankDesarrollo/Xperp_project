@@ -1,0 +1,38 @@
+# Comportamiento simulado de los socios externos (AGENTS.md, secciones 2.6 y 2.7).
+# Solo vive aquí: el ERP no puede saber de antemano si un proveedor va a fallar.
+# delay-days y eta-days: [mínimo, máximo] en días simulados.
+xperp:
+  partners:
+    suppliers:
+      PRV-01: { reject-probability: 0.02, delay-probability: 0.05, delay-days: [1, 2], partial-probability: 0.03 }
+      PRV-02: { reject-probability: 0.08, delay-probability: 0.15, delay-days: [1, 3], partial-probability: 0.05 }
+      PRV-03: { reject-probability: 0.03, delay-probability: 0.08, delay-days: [1, 1], partial-probability: 0.03 }
+      PRV-04: { reject-probability: 0.02, delay-probability: 0.07, delay-days: [1, 2], partial-probability: 0.02 }
+      PRV-05: { reject-probability: 0.03, delay-probability: 0.10, delay-days: [1, 2], partial-probability: 0.04 }
+      PRV-06: { reject-probability: 0.05, delay-probability: 0.30, delay-days: [2, 5], partial-probability: 0.10 }
+      PRV-07: { reject-probability: 0.02, delay-probability: 0.07, delay-days: [1, 2], partial-probability: 0.03 }
+      PRV-08: { reject-probability: 0.03, delay-probability: 0.10, delay-days: [1, 2], partial-probability: 0.04 }
+      PRV-09: { reject-probability: 0.01, delay-probability: 0.02, delay-days: [1, 1], partial-probability: 0.01 }
+    carriers:
+      TRP-01:
+        name: Rápido Valle Logística
+        coverage: [Cali, Yumbo, Jamundí, Palmira, Candelaria, Buga, Tuluá, Buenaventura]
+        base-rate: 18000
+        rate-per-kg: 450
+        eta-days: [1, 1]
+        on-time-rate: 0.95
+      TRP-02:
+        name: Envíos Cordillera S.A.S.
+        national: true
+        coverage: []
+        base-rate: 25000
+        rate-per-kg: 600
+        eta-days: [2, 4]
+        on-time-rate: 0.88
+      TRP-03:
+        name: TransCarga Express S.A.S.
+        coverage: [Bogotá, Medellín, Cali, Pereira, Manizales, Armenia, Popayán, Tunja]
+        base-rate: 32000
+        rate-per-kg: 520
+        eta-days: [1, 2]
+        on-time-rate: 0.96

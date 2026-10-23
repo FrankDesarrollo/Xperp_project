@@ -1,0 +1,115 @@
+/*
+ * Tokens de diseño. Todo color, tamaño y espaciado de la interfaz sale de aquí
+ * (AGENTS.md, sección 11.2). No se escriben colores sueltos en los componentes.
+ */
+
+:root {
+	/* Tipografía */
+	--font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+	--font-mono: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
+	--text-xs: 0.75rem;
+	--text-sm: 0.875rem;
+	--text-md: 1rem;
+	--text-lg: 1.125rem;
+	--text-xl: 1.375rem;
+	--text-2xl: 1.75rem;
+	--weight-regular: 400;
+	--weight-medium: 500;
+	--weight-bold: 650;
+	--leading: 1.5;
+
+	/* Espaciado (escala de 4 px) */
+	--space-1: 0.25rem;
+	--space-2: 0.5rem;
+	--space-3: 0.75rem;
+	--space-4: 1rem;
+	--space-5: 1.5rem;
+	--space-6: 2rem;
+	--space-7: 3rem;
+
+	/* Radios y sombras */
+	--radius-sm: 4px;
+	--radius-md: 8px;
+	--radius-lg: 12px;
+	--radius-full: 999px;
+	--shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06);
+	--shadow-md: 0 4px 12px rgb(0 0 0 / 0.08);
+
+	/* Layout */
+	--sidebar-width: 240px;
+	--topbar-height: 56px;
+
+	/* Movimiento */
+	--duration-fast: 120ms;
+	--duration-base: 200ms;
+
+	/* Colores: tema claro */
+	--color-bg: #f6f7f5;
+	--color-surface: #ffffff;
+	--color-surface-muted: #eef1ee;
+	--color-border: #d9ded9;
+	--color-text: #1b211e;
+	--color-text-muted: #5b655f;
+	--color-primary: #1f5f4a;
+	--color-primary-hover: #184c3b;
+	--color-on-primary: #ffffff;
+	--color-focus: #2f7dd1;
+
+	/* Semáforo de inventario y estados (siempre acompañados de texto o ícono) */
+	--color-danger: #b42318;
+	--color-danger-bg: #fdecea;
+	--color-warning: #a15c07;
+	--color-warning-bg: #fef4e6;
+	--color-success: #1e7a46;
+	--color-success-bg: #e8f5ed;
+	--color-info: #1d5fa8;
+	--color-info-bg: #e8f1fb;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme='light']) {
+		--color-bg: #121614;
+		--color-surface: #1a1f1c;
+		--color-surface-muted: #222924;
+		--color-border: #333c36;
+		--color-text: #e7ece9;
+		--color-text-muted: #9aa59f;
+		--color-primary: #4fb38c;
+		--color-primary-hover: #66c49f;
+		--color-on-primary: #0d1311;
+		--color-focus: #6aa8ea;
+		--color-danger: #f0776c;
+		--color-danger-bg: #3a1d1a;
+		--color-warning: #e7a54a;
+		--color-warning-bg: #3a2a14;
+		--color-success: #5cc58a;
+		--color-success-bg: #173324;
+		--color-info: #6aa8ea;
+		--color-info-bg: #162a40;
+		--shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+		--shadow-md: 0 4px 12px rgb(0 0 0 / 0.5);
+	}
+}
+
+:root[data-theme='dark'] {
+	--color-bg: #121614;
+	--color-surface: #1a1f1c;
+	--color-surface-muted: #222924;
+	--color-border: #333c36;
+	--color-text: #e7ece9;
+	--color-text-muted: #9aa59f;
+	--color-primary: #4fb38c;
+	--color-primary-hover: #66c49f;
+	--color-on-primary: #0d1311;
+	--color-focus: #6aa8ea;
+	--color-danger: #f0776c;
+	--color-danger-bg: #3a1d1a;
+	--color-warning: #e7a54a;
+	--color-warning-bg: #3a2a14;
+	--color-success: #5cc58a;
+	--color-success-bg: #173324;
+	--color-info: #6aa8ea;
+	--color-info-bg: #162a40;
+	--shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+	--shadow-md: 0 4px 12px rgb(0 0 0 / 0.5);
+}

@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: xperp-partners-mock
+  config:
+    import: classpath:partners.yml
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: 8101
+
+xperp:
+  partners:
+    api-token: ${PARTNERS_API_TOKEN}
+    webhook-secret: ${WEBHOOK_SECRET}
+    backend-url: ${BACKEND_URL:http://localhost:8080}
+    random-seed: ${SIM_RANDOM_SEED:42}
