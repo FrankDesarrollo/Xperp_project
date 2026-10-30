@@ -147,6 +147,8 @@ paths:
     $ref: paths/ai.yaml#/alert-read
   /ai/forecasts:
     $ref: paths/ai.yaml#/forecasts
+  /ai/recommendations:
+    $ref: paths/ai.yaml#/recommendations
   # assistant
   /assistant/messages:
     $ref: paths/assistant.yaml#/messages

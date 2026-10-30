@@ -325,3 +325,38 @@ forecasts:
               $ref: ../schemas/ai.yaml#/ForecastSeries
       "400":
         $ref: ../schemas/common.yaml#/responses/BadRequest
+
+recommendations:
+  get:
+    tags: [ai]
+    operationId: listStockRecommendations
+    summary: Recomendaciones de la IA sobre el inventario
+    description: >-
+      Qué haría la IA hoy con cada existencia que necesita atención: comprar, trasladar, esperar
+      la OC en camino, esperar una aprobación o frenar la reposición por exceso. Usa las mismas
+      reglas del ciclo de reabastecimiento (punto de reorden, pronóstico y puntaje de
+      proveedores), no ejecuta nada y no llama al LLM. Ordenadas de la más urgente a la menos.
+    parameters:
+      - name: warehouse_id
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      - name: product_id
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+    responses:
+      "200":
+        description: Recomendaciones
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: ../schemas/ai.yaml#/StockRecommendation
+      "400":
+        $ref: ../schemas/common.yaml#/responses/BadRequest
