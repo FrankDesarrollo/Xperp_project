@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import LoadState from '$lib/components/ui/LoadState.svelte';
+	import { Loader } from '$lib/utils/loader.svelte';
 	import { page } from '$app/state';
 	import { FileText, Plus, Trash2 } from '@lucide/svelte';
 	import { api, unwrap, ApiError, openPdf } from '$lib/api/client';
@@ -67,7 +69,14 @@
 		lines: [{ product_id: '', quantity: 0 }]
 	});
 
-	async function load() {
+	const loader = new Loader();
+
+	/** Toda carga pasa por el Loader: cargando, error con salida o datos. */
+	function load() {
+		return loader.run(fetchOrders);
+	}
+
+	async function fetchOrders() {
 		const res = await unwrap(
 			api.GET('/purchase-orders', {
 				params: { query: { status: status || undefined, page: pageNo, size: SIZE } }
@@ -164,15 +173,15 @@
 	}
 
 	onMount(() => {
-		void (async () => {
+		void loader.run(async () => {
 			[suppliers, warehouses] = await Promise.all([
 				unwrap(api.GET('/suppliers')),
 				unwrap(api.GET('/warehouses'))
 			]);
-			await load();
+			await fetchOrders();
 			const id = Number(page.url.searchParams.get('oc') ?? page.url.searchParams.get('id'));
 			if (id) void open(id);
-		})();
+		});
 		const off = live.on('purchase_order.changed', () => {
 			if (pageNo === 1) void load();
 		});
@@ -235,164 +244,167 @@
 	onchange={(id) => (tab = id)}
 />
 
-{#if tab === 'orders'}
-	<div class="filters">
-		<Field label="Estado">
-			<select bind:value={status} onchange={() => ((pageNo = 1), load())}>
-				<option value="">Todas</option>
-				<option value="open">Abiertas</option>
-				{#each Object.entries(PO_STATUS) as [k, v] (k)}{#if k !== 'delivered'}<option value={k}
-							>{v.label}</option
-						>{/if}{/each}
-			</select>
-		</Field>
-	</div>
-	<div class="table-wrap">
-		<table class="data">
-			<thead>
-				<tr
-					><th>OC</th><th>Creada</th><th>Proveedor</th><th>Bodega</th><th>Estado</th><th>Origen</th
-					><th>Llega</th><th class="num">Total</th></tr
-				>
-			</thead>
-			<tbody>
-				{#each orders as o (o.id)}
-					<tr
-						class="clickable"
-						tabindex="0"
-						onclick={() => open(o.id)}
-						onkeydown={(e) => e.key === 'Enter' && open(o.id)}
-					>
-						<td class="mono">{o.number}</td>
-						<td>{formatDateTime(o.created_at)}</td>
-						<td>{o.supplier_code} · {o.supplier_name}</td>
-						<td>{o.warehouse_code}</td>
-						<td><StatusBadge map={PO_STATUS} value={o.status} /></td>
-						<td
-							>{#if o.created_by_ai}<Badge tone="ai">IA</Badge>{:else}<span class="small"
-									>{o.created_by_name ?? 'Usuario'}</span
-								>{/if}</td
-						>
-						<td>{formatDateTime(o.expected_at)}</td>
-						<td class="num">{formatCop(o.total)}</td>
-					</tr>
-				{:else}
-					<tr><td colspan="8" class="text-muted">No hay órdenes de compra.</td></tr>
-				{/each}
-			</tbody>
-		</table>
-	</div>
-	<Pagination page={pageNo} size={SIZE} {total} onchange={(p) => ((pageNo = p), load())} />
-{:else if tab === 'suppliers'}
-	<div class="table-wrap">
-		<table class="data">
-			<thead>
-				<tr
-					><th>Código</th><th>Proveedor</th><th>Ciudad</th><th>Entrega</th><th class="num"
-						>Pedido mínimo</th
-					><th>Plazo</th><th class="num">Cumplimiento</th><th class="num">Ofertas</th></tr
-				>
-			</thead>
-			<tbody>
-				{#each suppliers as s (s.id)}
-					<tr
-						class="clickable"
-						tabindex="0"
-						onclick={() => openSupplier(s)}
-						onkeydown={(e) => e.key === 'Enter' && openSupplier(s)}
-					>
-						<td class="mono">{s.code}</td>
-						<td>{s.name}</td>
-						<td>{s.city}</td>
-						<td class="small"
-							>{s.lead_times
-								.map((l) => `${l.warehouse_code} ${l.lead_time_days} d`)
-								.join(' · ')}</td
-						>
-						<td class="num">{formatCop(s.min_order_amount)}</td>
-						<td>{s.payment_terms_days === 0 ? 'Contado' : `${s.payment_terms_days} días`}</td>
-						<td class="num">{formatPct(s.on_time_rate, true, 0)}</td>
-						<td class="num">{s.offer_count}</td>
-					</tr>
-				{/each}
-			</tbody>
-		</table>
-	</div>
-{:else}
-	<div class="grid-2">
-		<div class="card">
-			<h2>Uso del presupuesto</h2>
-			<EChart
-				label="Uso del presupuesto por categoría"
-				height="220px"
-				option={(t) =>
-					barOption(
-						t,
-						budgets.map((b) => ({
-							label: b.category_name,
-							value: b.usage_pct,
-							tone: b.usage_pct > 85 ? 'danger' : b.usage_pct > 70 ? 'warning' : undefined
-						})),
-						(v) => formatPct(v),
-						Math.max(100, ...budgets.map((b) => b.usage_pct))
-					)}
-			/>
+<LoadState {loader} what="las órdenes de compra" onretry={load}>
+	{#if tab === 'orders'}
+		<div class="filters">
+			<Field label="Estado">
+				<select bind:value={status} onchange={() => ((pageNo = 1), load())}>
+					<option value="">Todas</option>
+					<option value="open">Abiertas</option>
+					{#each Object.entries(PO_STATUS) as [k, v] (k)}{#if k !== 'delivered'}<option value={k}
+								>{v.label}</option
+							>{/if}{/each}
+				</select>
+			</Field>
 		</div>
 		<div class="table-wrap">
 			<table class="data">
-				<thead
-					><tr
-						><th>Categoría</th><th class="num">Presupuesto</th><th class="num">Comprometido</th><th
-							class="num">Gastado</th
-						><th class="num">Disponible</th></tr
-					></thead
-				>
+				<thead>
+					<tr
+						><th>OC</th><th>Creada</th><th>Proveedor</th><th>Bodega</th><th>Estado</th><th
+							>Origen</th
+						><th>Llega</th><th class="num">Total</th></tr
+					>
+				</thead>
 				<tbody>
-					{#each budgets as b (b.id)}
-						<tr>
-							<td>{b.category_name} <span class="text-muted small">{b.period}</span></td>
-							<td class="num">{formatCop(b.amount)}</td>
-							<td class="num">{formatCop(b.committed)}</td>
-							<td class="num">{formatCop(b.spent)}</td>
-							<td class="num" class:neg={Number(b.available) < 0}>{formatCop(b.available)}</td>
+					{#each orders as o (o.id)}
+						<tr
+							class="clickable"
+							tabindex="0"
+							onclick={() => open(o.id)}
+							onkeydown={(e) => e.key === 'Enter' && open(o.id)}
+						>
+							<td class="mono">{o.number}</td>
+							<td>{formatDateTime(o.created_at)}</td>
+							<td>{o.supplier_code} · {o.supplier_name}</td>
+							<td>{o.warehouse_code}</td>
+							<td><StatusBadge map={PO_STATUS} value={o.status} /></td>
+							<td
+								>{#if o.created_by_ai}<Badge tone="ai">IA</Badge>{:else}<span class="small"
+										>{o.created_by_name ?? 'Usuario'}</span
+									>{/if}</td
+							>
+							<td>{formatDateTime(o.expected_at)}</td>
+							<td class="num">{formatCop(o.total)}</td>
+						</tr>
+					{:else}
+						<tr><td colspan="8" class="text-muted">No hay órdenes de compra.</td></tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+		<Pagination page={pageNo} size={SIZE} {total} onchange={(p) => ((pageNo = p), load())} />
+	{:else if tab === 'suppliers'}
+		<div class="table-wrap">
+			<table class="data">
+				<thead>
+					<tr
+						><th>Código</th><th>Proveedor</th><th>Ciudad</th><th>Entrega</th><th class="num"
+							>Pedido mínimo</th
+						><th>Plazo</th><th class="num">Cumplimiento</th><th class="num">Ofertas</th></tr
+					>
+				</thead>
+				<tbody>
+					{#each suppliers as s (s.id)}
+						<tr
+							class="clickable"
+							tabindex="0"
+							onclick={() => openSupplier(s)}
+							onkeydown={(e) => e.key === 'Enter' && openSupplier(s)}
+						>
+							<td class="mono">{s.code}</td>
+							<td>{s.name}</td>
+							<td>{s.city}</td>
+							<td class="small"
+								>{s.lead_times
+									.map((l) => `${l.warehouse_code} ${l.lead_time_days} d`)
+									.join(' · ')}</td
+							>
+							<td class="num">{formatCop(s.min_order_amount)}</td>
+							<td>{s.payment_terms_days === 0 ? 'Contado' : `${s.payment_terms_days} días`}</td>
+							<td class="num">{formatPct(s.on_time_rate, true, 0)}</td>
+							<td class="num">{s.offer_count}</td>
 						</tr>
 					{/each}
 				</tbody>
 			</table>
 		</div>
-	</div>
-	<h2 class="section-title">Cuentas por pagar</h2>
-	<div class="table-wrap">
-		<table class="data">
-			<thead
-				><tr
-					><th>OC</th><th>Proveedor</th><th>Vence</th><th>Estado</th><th class="num">Monto</th></tr
-				></thead
-			>
-			<tbody>
-				{#each payables as p (p.id)}
-					<tr>
-						<td class="mono">{p.purchase_order_number}</td>
-						<td>{p.supplier_name}</td>
-						<td>{formatDate(p.due_date)}</td>
-						<td
-							><Badge tone={p.status === 'paid' ? 'success' : 'warning'}
-								>{p.status === 'paid' ? 'Pagada' : 'Abierta'}</Badge
-							></td
-						>
-						<td class="num">{formatCop(p.amount)}</td>
-					</tr>
-				{:else}
-					<tr
-						><td colspan="5" class="text-muted"
-							>Aún no hay cuentas por pagar (se crean al recibir la mercancía).</td
-						></tr
+	{:else}
+		<div class="grid-2">
+			<div class="card">
+				<h2>Uso del presupuesto</h2>
+				<EChart
+					label="Uso del presupuesto por categoría"
+					height="220px"
+					option={(t) =>
+						barOption(
+							t,
+							budgets.map((b) => ({
+								label: b.category_name,
+								value: b.usage_pct,
+								tone: b.usage_pct > 85 ? 'danger' : b.usage_pct > 70 ? 'warning' : undefined
+							})),
+							(v) => formatPct(v),
+							Math.max(100, ...budgets.map((b) => b.usage_pct))
+						)}
+				/>
+			</div>
+			<div class="table-wrap">
+				<table class="data">
+					<thead
+						><tr
+							><th>Categoría</th><th class="num">Presupuesto</th><th class="num">Comprometido</th
+							><th class="num">Gastado</th><th class="num">Disponible</th></tr
+						></thead
 					>
-				{/each}
-			</tbody>
-		</table>
-	</div>
-{/if}
+					<tbody>
+						{#each budgets as b (b.id)}
+							<tr>
+								<td>{b.category_name} <span class="text-muted small">{b.period}</span></td>
+								<td class="num">{formatCop(b.amount)}</td>
+								<td class="num">{formatCop(b.committed)}</td>
+								<td class="num">{formatCop(b.spent)}</td>
+								<td class="num" class:neg={Number(b.available) < 0}>{formatCop(b.available)}</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+		</div>
+		<h2 class="section-title">Cuentas por pagar</h2>
+		<div class="table-wrap">
+			<table class="data">
+				<thead
+					><tr
+						><th>OC</th><th>Proveedor</th><th>Vence</th><th>Estado</th><th class="num">Monto</th
+						></tr
+					></thead
+				>
+				<tbody>
+					{#each payables as p (p.id)}
+						<tr>
+							<td class="mono">{p.purchase_order_number}</td>
+							<td>{p.supplier_name}</td>
+							<td>{formatDate(p.due_date)}</td>
+							<td
+								><Badge tone={p.status === 'paid' ? 'success' : 'warning'}
+									>{p.status === 'paid' ? 'Pagada' : 'Abierta'}</Badge
+								></td
+							>
+							<td class="num">{formatCop(p.amount)}</td>
+						</tr>
+					{:else}
+						<tr
+							><td colspan="5" class="text-muted"
+								>Aún no hay cuentas por pagar (se crean al recibir la mercancía).</td
+							></tr
+						>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	{/if}
+</LoadState>
 
 <Drawer
 	open={selected !== null}

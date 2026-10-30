@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import LoadState from '$lib/components/ui/LoadState.svelte';
+	import { Loader } from '$lib/utils/loader.svelte';
 	import { page } from '$app/state';
 	import { api, unwrap, ApiError } from '$lib/api/client';
 	import type { AiDecision } from '$lib/api/types';
@@ -23,7 +25,14 @@
 	let selected = $state<AiDecision | null>(null);
 	let pending = $state(0);
 
-	async function load() {
+	const loader = new Loader();
+
+	/** Toda carga pasa por el Loader: cargando, error con salida o datos. */
+	function load() {
+		return loader.run(fetchDecisions);
+	}
+
+	async function fetchDecisions() {
 		const res = await unwrap(
 			api.GET('/ai/decisions', {
 				params: {
@@ -110,18 +119,20 @@
 	{/if}
 </div>
 
-{#if items.length === 0}
-	<EmptyState title="No hay decisiones con estos filtros"
-		>Inicia la simulación para que la IA empiece a operar.</EmptyState
-	>
-{:else}
-	<div class="list">
-		{#each items as d (d.id)}
-			<DecisionCard decision={d} compact onopen={(x) => openId(x.id)} />
-		{/each}
-	</div>
-	<Pagination page={pageNo} size={SIZE} {total} onchange={(p) => ((pageNo = p), load())} />
-{/if}
+<LoadState {loader} what="las decisiones" onretry={load}>
+	{#if items.length === 0}
+		<EmptyState title="No hay decisiones con estos filtros"
+			>Inicia la simulación para que la IA empiece a operar.</EmptyState
+		>
+	{:else}
+		<div class="list">
+			{#each items as d (d.id)}
+				<DecisionCard decision={d} compact onopen={(x) => openId(x.id)} />
+			{/each}
+		</div>
+		<Pagination page={pageNo} size={SIZE} {total} onchange={(p) => ((pageNo = p), load())} />
+	{/if}
+</LoadState>
 
 <Drawer
 	open={selected !== null}

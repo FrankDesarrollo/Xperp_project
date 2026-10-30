@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import LoadState from '$lib/components/ui/LoadState.svelte';
+	import { Loader } from '$lib/utils/loader.svelte';
 	import { CheckCircle2, Circle, FastForward, Pause, Play, RotateCcw } from '@lucide/svelte';
 	import { api, unwrap, ApiError } from '$lib/api/client';
 	import type { Scenario } from '$lib/api/types';
@@ -18,7 +20,14 @@
 	let busy = $state<string | null>(null);
 	let confirmReset = $state(false);
 
-	async function loadScenarios() {
+	const loader = new Loader();
+
+	/** Toda carga pasa por el Loader: cargando, error con salida o datos. */
+	function loadScenarios() {
+		return loader.run(fetchScenarios);
+	}
+
+	async function fetchScenarios() {
 		scenarios = await unwrap(api.GET('/simulation/scenarios'));
 	}
 
@@ -145,37 +154,39 @@
 	</section>
 </div>
 
-<section class="card scenarios">
-	<div class="row">
-		<h2>Guion de escenarios</h2>
-		<span class="spacer"></span>
-		<span class="small text-muted"
-			>{clock.scenarioCursor} de {clock.scenariosTotal} · {progress} %</span
+<LoadState {loader} what="el guion de escenarios" onretry={loadScenarios}>
+	<section class="card scenarios">
+		<div class="row">
+			<h2>Guion de escenarios</h2>
+			<span class="spacer"></span>
+			<span class="small text-muted"
+				>{clock.scenarioCursor} de {clock.scenariosTotal} · {progress} %</span
+			>
+		</div>
+		<div
+			class="bar"
+			role="progressbar"
+			aria-valuenow={progress}
+			aria-valuemin="0"
+			aria-valuemax="100"
 		>
-	</div>
-	<div
-		class="bar"
-		role="progressbar"
-		aria-valuenow={progress}
-		aria-valuemin="0"
-		aria-valuemax="100"
-	>
-		<span style:width="{progress}%"></span>
-	</div>
-	<ol>
-		{#each scenarios as s (s.index)}
-			<li class:done={s.done}>
-				<span class="icon" aria-hidden="true"
-					>{#if s.done}<CheckCircle2 size={18} />{:else}<Circle size={18} />{/if}</span
-				>
-				<div>
-					<strong>Día {s.day} · {s.time} — {s.title}</strong>
-					<p class="small text-muted">Qué debe hacer Xperp: {s.expected}</p>
-				</div>
-			</li>
-		{/each}
-	</ol>
-</section>
+			<span style:width="{progress}%"></span>
+		</div>
+		<ol>
+			{#each scenarios as s (s.index)}
+				<li class:done={s.done}>
+					<span class="icon" aria-hidden="true"
+						>{#if s.done}<CheckCircle2 size={18} />{:else}<Circle size={18} />{/if}</span
+					>
+					<div>
+						<strong>Día {s.day} · {s.time} — {s.title}</strong>
+						<p class="small text-muted">Qué debe hacer Xperp: {s.expected}</p>
+					</div>
+				</li>
+			{/each}
+		</ol>
+	</section>
+</LoadState>
 
 <Modal open={confirmReset} title="¿Reiniciar la demo?" onclose={() => (confirmReset = false)}>
 	<p>

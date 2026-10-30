@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import LoadState from '$lib/components/ui/LoadState.svelte';
+	import { Loader } from '$lib/utils/loader.svelte';
 	import { api, unwrap, ApiError } from '$lib/api/client';
 	import type { Approval } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
@@ -23,7 +25,14 @@
 	let pageNo = $state(1);
 	let busyId = $state<number | null>(null);
 
-	async function load() {
+	const loader = new Loader();
+
+	/** Toda carga pasa por el Loader: cargando, error con salida o datos. */
+	function load() {
+		return loader.run(fetchApprovals);
+	}
+
+	async function fetchApprovals() {
 		const res = await unwrap(
 			api.GET('/approvals', {
 				params: {
@@ -92,29 +101,31 @@
 	onchange={(id) => ((tab = id), (pageNo = 1), load())}
 />
 
-{#if items.length === 0}
-	<EmptyState
-		title={tab === 'pending'
-			? 'No tienes aprobaciones pendientes'
-			: 'No hay aprobaciones en esta lista'}
-	>
-		Cuando una OC pase de $ 5.000.000, haya un traslado o un ajuste de inventario, la IA te lo trae
-		aquí.
-	</EmptyState>
-{:else}
-	<div class="list">
-		{#each items as a (a.id)}
-			<ApprovalCard
-				approval={a}
-				canDecide={canDecide(a)}
-				busy={busyId === a.id}
-				onapprove={(x, c) => decide(x, c, true)}
-				onreject={(x, c) => decide(x, c, false)}
-			/>
-		{/each}
-	</div>
-	<Pagination page={pageNo} size={SIZE} {total} onchange={(p) => ((pageNo = p), load())} />
-{/if}
+<LoadState {loader} what="las aprobaciones" onretry={load}>
+	{#if items.length === 0}
+		<EmptyState
+			title={tab === 'pending'
+				? 'No tienes aprobaciones pendientes'
+				: 'No hay aprobaciones en esta lista'}
+		>
+			Cuando una OC pase de $ 5.000.000, haya un traslado o un ajuste de inventario, la IA te lo
+			trae aquí.
+		</EmptyState>
+	{:else}
+		<div class="list">
+			{#each items as a (a.id)}
+				<ApprovalCard
+					approval={a}
+					canDecide={canDecide(a)}
+					busy={busyId === a.id}
+					onapprove={(x, c) => decide(x, c, true)}
+					onreject={(x, c) => decide(x, c, false)}
+				/>
+			{/each}
+		</div>
+		<Pagination page={pageNo} size={SIZE} {total} onchange={(p) => ((pageNo = p), load())} />
+	{/if}
+</LoadState>
 
 <style>
 	.list {
