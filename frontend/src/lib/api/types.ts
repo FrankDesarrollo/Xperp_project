@@ -30,6 +30,7 @@ export type AutonomyPolicy = S['AutonomyPolicy'];
 export type AiSettings = S['AiSettings'];
 export type Alert = S['Alert'];
 export type ForecastSeries = S['ForecastSeries'];
+export type StockRecommendation = S['StockRecommendation'];
 export type AssistantMessage = S['AssistantMessage'];
 export type Kpis = S['Kpis'];
 export type Series = S['Series'];

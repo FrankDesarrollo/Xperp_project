@@ -23,7 +23,9 @@
 		Truck,
 		Warehouse,
 		Receipt,
-		Menu
+		Menu,
+		Sparkles,
+		Lock
 	} from '@lucide/svelte';
 	import { api, unwrap, ApiError } from '$lib/api/client';
 	import { auth } from '$lib/stores/auth.svelte';
@@ -31,7 +33,11 @@
 	import { live } from '$lib/stores/live.svelte';
 	import { notifications } from '$lib/stores/notifications.svelte';
 	import { theme } from '$lib/stores/theme.svelte';
-	import { canAccess, type Section } from '$lib/utils/permissions';
+	import { canAccess, sectionFor, type Section } from '$lib/utils/permissions';
+	import { assistant, ASSISTANT_SUGGESTIONS } from '$lib/stores/assistant.svelte';
+	import AssistantChat from '$lib/components/domain/AssistantChat.svelte';
+	import Drawer from '$lib/components/ui/Drawer.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
 	import { AI_MODE, ROLE_LABEL } from '$lib/utils/labels';
 	import { formatDateTime } from '$lib/utils/format';
 	import Badge from '$lib/components/ui/Badge.svelte';
@@ -69,30 +75,50 @@
 	let showMenu = $state(false);
 	let visible = $derived(menu.filter((m) => canAccess(auth.role, m.section as Section)));
 	let mode = $derived(AI_MODE[clock.aiMode] ?? { label: 'IA activa', tone: 'success' as const });
+	// Una ruta de una sección que el rol no puede ver muestra «sin acceso» en vez de fallar a medias.
+	let section = $derived(sectionFor(page.url.pathname));
+	let allowed = $derived(section === null || canAccess(auth.role, section));
+	let onAssistantPage = $derived(page.url.pathname.startsWith('/asistente'));
+	let notif = $state<HTMLDivElement>();
+
+	async function boot() {
+		loadError = null;
+		try {
+			auth.setUser(await unwrap(api.GET('/auth/me')));
+			clock.apply(await unwrap(api.GET('/simulation/clock')));
+			await notifications.load();
+			live.start(auth.token!);
+			ready = true;
+		} catch (e) {
+			// Solo un 401 cierra la sesión. Una petición abortada (el usuario se fue de la página)
+			// o un backend caído no deben borrar el token.
+			if (e instanceof ApiError && e.status === 401) {
+				auth.clear();
+				await goto(resolve('/login'));
+			} else if (!(e instanceof DOMException && e.name === 'AbortError')) {
+				loadError = 'No se pudo conectar con el servidor. Revisa la conexión e intenta de nuevo.';
+			}
+		}
+	}
+
+	function onkeydown(e: KeyboardEvent) {
+		if (e.key !== 'Escape') return;
+		showMenu = false;
+		showNotifications = false;
+	}
+
+	function onpointerdown(e: PointerEvent) {
+		if (showNotifications && notif && !notif.contains(e.target as Node)) {
+			showNotifications = false;
+		}
+	}
 
 	onMount(() => {
 		if (!auth.token) {
 			void goto(resolve('/login'));
 			return;
 		}
-		void (async () => {
-			try {
-				auth.setUser(await unwrap(api.GET('/auth/me')));
-				clock.apply(await unwrap(api.GET('/simulation/clock')));
-				await notifications.load();
-				live.start(auth.token!);
-				ready = true;
-			} catch (e) {
-				// Solo un 401 cierra la sesión. Una petición abortada (el usuario se fue de la página)
-				// o un backend caído no deben borrar el token.
-				if (e instanceof ApiError && e.status === 401) {
-					auth.clear();
-					await goto(resolve('/login'));
-				} else if (!(e instanceof DOMException && e.name === 'AbortError')) {
-					loadError = 'No se pudo conectar con el servidor. Reintenta en unos segundos.';
-				}
-			}
-		})();
+		void boot();
 		// Por si el SSE se cae, el reloj se refresca cada 10 s.
 		const timer = setInterval(async () => {
 			if (!live.connected && auth.token) {
@@ -127,9 +153,14 @@
 	}
 </script>
 
+<svelte:window {onkeydown} {onpointerdown} />
+
 {#if ready}
 	<div class="shell">
-		<nav class="sidebar" class:open={showMenu} aria-label="Menú principal">
+		{#if showMenu}
+			<div class="backdrop" role="presentation" onclick={() => (showMenu = false)}></div>
+		{/if}
+		<nav id="main-menu" class="sidebar" class:open={showMenu} aria-label="Menú principal">
 			<a class="brand" href={resolve('/tablero')}>
 				<span class="logo" aria-hidden="true">X</span>
 				<span>
@@ -164,7 +195,13 @@
 		</nav>
 
 		<header class="topbar">
-			<button class="icon menu-toggle" onclick={() => (showMenu = !showMenu)} aria-label="Menú">
+			<button
+				class="icon menu-toggle"
+				onclick={() => (showMenu = !showMenu)}
+				aria-label="Menú"
+				aria-expanded={showMenu}
+				aria-controls="main-menu"
+			>
 				<Menu size={20} />
 			</button>
 			<div class="clock" title="Hora simulada">
@@ -195,11 +232,12 @@
 						size={18}
 					/>{:else}<SunMoon size={18} />{/if}
 			</button>
-			<div class="notif">
+			<div class="notif" bind:this={notif}>
 				<button
 					class="icon"
 					onclick={() => (showNotifications = !showNotifications)}
 					aria-label="Notificaciones ({notifications.unread} sin leer)"
+					aria-expanded={showNotifications}
 				>
 					<Bell size={18} />
 					{#if notifications.unread > 0}<span class="count"
@@ -243,11 +281,47 @@
 		</header>
 
 		<main class="content">
-			{@render children()}
+			{#if allowed}
+				{@render children()}
+			{:else}
+				<div class="denied card" role="alert">
+					<Lock size={28} aria-hidden="true" />
+					<h1>Esta sección no está disponible para tu rol</h1>
+					<p class="text-muted">
+						Con el rol {ROLE_LABEL[auth.user?.role ?? ''] ?? ''} no puedes ver esta pantalla. Si la necesitas,
+						pídele acceso a un administrador.
+					</p>
+					<a href={resolve('/tablero')}>Volver al tablero</a>
+				</div>
+			{/if}
 		</main>
+
+		{#if !onAssistantPage}
+			<button
+				class="ask-ai"
+				onclick={() => (assistant.open = true)}
+				aria-haspopup="dialog"
+				aria-label="Preguntar a la IA"
+			>
+				<Sparkles size={20} aria-hidden="true" />
+				<span>Preguntar a la IA</span>
+			</button>
+		{/if}
+		<Drawer
+			open={assistant.open && !onAssistantPage}
+			flush
+			title="Asistente de Xperp"
+			subtitle="Consulta datos y recomendaciones de la IA; no ejecuta acciones"
+			onclose={() => (assistant.open = false)}
+		>
+			<AssistantChat suggestions={ASSISTANT_SUGGESTIONS} />
+		</Drawer>
 	</div>
 {:else}
-	<div class="loading text-muted">{loadError ?? 'Cargando Xperp…'}</div>
+	<div class="loading text-muted" role={loadError ? 'alert' : 'status'}>
+		<p>{loadError ?? 'Cargando Xperp…'}</p>
+		{#if loadError}<Button variant="primary" onclick={boot}>Reintentar</Button>{/if}
+	</div>
 {/if}
 
 <style>
@@ -399,6 +473,49 @@
 		display: none;
 	}
 
+	.backdrop {
+		display: none;
+	}
+
+	.denied {
+		display: grid;
+		justify-items: start;
+		gap: var(--space-3);
+		max-width: 560px;
+	}
+
+	.denied h1 {
+		font-size: var(--text-xl);
+		margin: 0;
+	}
+
+	.denied p {
+		margin: 0;
+	}
+
+	.ask-ai {
+		position: fixed;
+		right: var(--space-5);
+		bottom: var(--space-5);
+		z-index: var(--z-sticky);
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		min-height: 3rem;
+		padding: var(--space-3) var(--space-4);
+		border: none;
+		border-radius: var(--radius-full);
+		background: var(--color-ai);
+		color: var(--color-surface);
+		font-weight: var(--weight-medium);
+		box-shadow: var(--shadow-lg);
+		cursor: pointer;
+	}
+
+	.ask-ai:hover {
+		filter: brightness(1.08);
+	}
+
 	.notif {
 		position: relative;
 	}
@@ -473,6 +590,8 @@
 	.content {
 		grid-area: content;
 		padding: var(--space-5) var(--space-6);
+		/* Espacio para que el botón «Preguntar a la IA» no tape el final de la página */
+		padding-bottom: calc(var(--space-7) + var(--space-6));
 		min-width: 0;
 		max-width: 1440px;
 		width: 100%;
@@ -481,7 +600,15 @@
 	.loading {
 		min-height: 100dvh;
 		display: grid;
-		place-items: center;
+		place-content: center;
+		justify-items: center;
+		gap: var(--space-3);
+		padding: var(--space-4);
+		text-align: center;
+	}
+
+	.loading p {
+		margin: 0;
 	}
 
 	@media (max-width: 900px) {
@@ -499,12 +626,37 @@
 			width: min(280px, 85vw);
 			z-index: var(--z-drawer);
 			transform: translateX(-100%);
-			transition: transform var(--duration-base);
+			/* Oculto también para el teclado y el lector de pantalla mientras está cerrado */
+			visibility: hidden;
+			transition:
+				transform var(--duration-base),
+				visibility 0s linear var(--duration-base);
 			box-shadow: var(--shadow-lg);
 		}
 
 		.sidebar.open {
 			transform: none;
+			visibility: visible;
+			transition: transform var(--duration-base);
+		}
+
+		.sidebar ul a[href] {
+			min-height: 2.75rem;
+		}
+
+		.backdrop {
+			display: block;
+			position: fixed;
+			inset: 0;
+			background: var(--color-overlay);
+			z-index: calc(var(--z-drawer) - 1);
+		}
+
+		.icon {
+			min-width: 2.75rem;
+			min-height: 2.75rem;
+			align-items: center;
+			justify-content: center;
 		}
 
 		.menu-toggle {
@@ -536,12 +688,23 @@
 			display: none;
 		}
 
+		.ask-ai {
+			right: var(--space-4);
+			bottom: var(--space-4);
+			padding: var(--space-3);
+		}
+
+		.ask-ai span {
+			display: none;
+		}
+
 		.clock :global(.badge) {
 			display: none;
 		}
 
 		.content {
 			padding: var(--space-4);
+			padding-bottom: calc(var(--space-7) + var(--space-5));
 		}
 	}
 </style>

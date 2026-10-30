@@ -7,23 +7,52 @@
 		title: string;
 		subtitle?: string;
 		wide?: boolean;
+		/** Sin relleno: el contenido ocupa todo el alto (por ejemplo, un chat). */
+		flush?: boolean;
 		onclose: () => void;
 		children: Snippet;
 		actions?: Snippet;
 	}
 
-	let { open, title, subtitle, wide = false, onclose, children, actions }: Props = $props();
+	let {
+		open,
+		title,
+		subtitle,
+		wide = false,
+		flush = false,
+		onclose,
+		children,
+		actions
+	}: Props = $props();
+
+	let panel = $state<HTMLDivElement>();
 
 	function onkeydown(e: KeyboardEvent) {
 		if (open && e.key === 'Escape') onclose();
 	}
+
+	// Al abrir, el foco entra al panel; al cerrar, vuelve a lo que lo abrió (teclado y lector).
+	$effect(() => {
+		if (!open) return;
+		const before = document.activeElement as HTMLElement | null;
+		panel?.focus();
+		return () => before?.focus?.();
+	});
 </script>
 
 <svelte:window {onkeydown} />
 
 {#if open}
 	<div class="overlay" role="presentation" onclick={onclose}></div>
-	<div class="drawer" class:wide role="dialog" aria-modal="true" aria-label={title} tabindex="-1">
+	<div
+		class="drawer"
+		class:wide
+		role="dialog"
+		aria-modal="true"
+		aria-label={title}
+		tabindex="-1"
+		bind:this={panel}
+	>
 		<header>
 			<div>
 				<h2>{title}</h2>
@@ -31,7 +60,7 @@
 			</div>
 			<button class="close" onclick={onclose} aria-label="Cerrar"><X size={20} /></button>
 		</header>
-		<div class="body">{@render children()}</div>
+		<div class="body" class:flush>{@render children()}</div>
 		{#if actions}
 			<footer>{@render actions()}</footer>
 		{/if}
@@ -90,6 +119,14 @@
 		color: var(--color-text-muted);
 		padding: var(--space-1);
 		border-radius: var(--radius-md);
+		min-width: 2.75rem;
+		min-height: 2.75rem;
+		display: grid;
+		place-items: center;
+	}
+
+	.drawer:focus {
+		outline: none;
 	}
 
 	.close:hover {
@@ -103,6 +140,13 @@
 		display: grid;
 		gap: var(--space-5);
 		align-content: start;
+	}
+
+	.body.flush {
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
 	}
 
 	footer {

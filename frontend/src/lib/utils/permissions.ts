@@ -23,3 +23,21 @@ export type Section = keyof typeof SECTION_ROLES;
 export function canAccess(role: Role | undefined, section: Section): boolean {
 	return role !== undefined && (SECTION_ROLES[section] as readonly Role[]).includes(role);
 }
+
+/**
+ * Sección de la interfaz a la que pertenece una ruta (`/ia/decisiones/5` → `ia/decisiones`), o
+ * `null` si la ruta no es de ninguna sección con permisos.
+ */
+export function sectionFor(pathname: string): Section | null {
+	const path = pathname.replace(/^\/+|\/+$/g, '');
+	let best: Section | null = null;
+	for (const section of Object.keys(SECTION_ROLES) as Section[]) {
+		if (
+			(path === section || path.startsWith(section + '/')) &&
+			section.length > (best?.length ?? 0)
+		) {
+			best = section;
+		}
+	}
+	return best;
+}

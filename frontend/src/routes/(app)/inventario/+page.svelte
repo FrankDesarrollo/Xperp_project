@@ -8,6 +8,7 @@
 		InventoryCount,
 		InventoryItem,
 		InventoryMovement,
+		StockRecommendation,
 		StockTransfer,
 		SupplierOffer,
 		Warehouse
@@ -17,6 +18,9 @@
 	import { toasts } from '$lib/stores/toasts.svelte';
 	import StockBadge from '$lib/components/domain/StockBadge.svelte';
 	import StatusBadge from '$lib/components/domain/StatusBadge.svelte';
+	import RecommendationCard from '$lib/components/domain/RecommendationCard.svelte';
+	import EmptyState from '$lib/components/ui/EmptyState.svelte';
+	import LoadState from '$lib/components/ui/LoadState.svelte';
 	import Drawer from '$lib/components/ui/Drawer.svelte';
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
@@ -28,6 +32,7 @@
 	import { lineOption } from '$lib/components/charts/options';
 	import { formatCop, formatDateTime, formatNumber, formatPct } from '$lib/utils/format';
 	import { TRANSFER_STATUS } from '$lib/utils/labels';
+	import { Loader } from '$lib/utils/loader.svelte';
 
 	const MOVEMENT: Record<string, string> = {
 		sale: 'Venta',
@@ -38,7 +43,7 @@
 		return: 'Devolución'
 	};
 
-	let tab = $state('stock');
+	let tab = $state(page.url.searchParams.get('tab') === 'recomendaciones' ? 'recs' : 'stock');
 	let warehouses = $state<Warehouse[]>([]);
 	let categories = $state<Category[]>([]);
 	let items = $state<InventoryItem[]>([]);
@@ -52,6 +57,14 @@
 	});
 	let transfers = $state<StockTransfer[]>([]);
 	let counts = $state<InventoryCount[]>([]);
+	let recs = $state<StockRecommendation[]>([]);
+	let recWarehouse = $state('');
+	let selectedRec = $state<StockRecommendation | null>(null);
+
+	const stockLoader = new Loader();
+	const recLoader = new Loader();
+	const transfersLoader = new Loader();
+	const countsLoader = new Loader();
 
 	let selected = $state<InventoryItem | null>(null);
 	let movements = $state<InventoryMovement[]>([]);
@@ -96,11 +109,34 @@
 		counts = await unwrap(api.GET('/inventory/counts'));
 	}
 
+	async function loadRecommendations() {
+		recs = await unwrap(
+			api.GET('/ai/recommendations', {
+				params: { query: { warehouse_id: recWarehouse ? Number(recWarehouse) : undefined } }
+			})
+		);
+	}
+
+	/** Abre el detalle desde una recomendación: trae la existencia completa. */
+	async function openFromRecommendation(rec: StockRecommendation) {
+		try {
+			const item = await unwrap(
+				api.GET('/inventory/{product_id}/{warehouse_id}', {
+					params: { path: { product_id: rec.product_id, warehouse_id: rec.warehouse_id } }
+				})
+			);
+			await open(item);
+		} catch (e) {
+			toasts.error('No se pudo abrir la existencia', e instanceof ApiError ? e.message : undefined);
+		}
+	}
+
 	async function open(item: InventoryItem) {
 		selected = item;
 		movementsPage = 1;
 		forecast = null;
-		const [f, o] = await Promise.all([
+		selectedRec = null;
+		const [f, o, r] = await Promise.all([
 			unwrap(
 				api.GET('/ai/forecasts', {
 					params: {
@@ -112,10 +148,16 @@
 					}
 				})
 			),
-			unwrap(api.GET('/supplier-offers', { params: { query: { product_id: item.product_id } } }))
+			unwrap(api.GET('/supplier-offers', { params: { query: { product_id: item.product_id } } })),
+			unwrap(
+				api.GET('/ai/recommendations', {
+					params: { query: { product_id: item.product_id, warehouse_id: item.warehouse_id } }
+				})
+			)
 		]);
 		forecast = f;
 		offers = o;
+		selectedRec = r[0] ?? null;
 		await loadMovements();
 	}
 
@@ -202,7 +244,7 @@
 				unwrap(api.GET('/warehouses')),
 				unwrap(api.GET('/categories'))
 			]);
-			await load();
+			await stockLoader.run(load);
 			const productParam = Number(page.url.searchParams.get('product'));
 			if (productParam) {
 				const res = await unwrap(api.GET('/inventory', { params: { query: { size: 200 } } }));
@@ -212,11 +254,13 @@
 			if (page.url.searchParams.get('id')) tab = 'transfers';
 		})();
 		let timer: ReturnType<typeof setTimeout> | null = null;
+		void recLoader.run(loadRecommendations);
 		const off = live.on('inventory.changed', () => {
 			if (timer) return;
 			timer = setTimeout(() => {
 				timer = null;
-				void load();
+				void stockLoader.run(load);
+				void recLoader.run(loadRecommendations);
 			}, 4000);
 		});
 		return () => {
@@ -226,13 +270,13 @@
 	});
 
 	$effect(() => {
-		if (tab === 'transfers') void loadTransfers();
-		if (tab === 'counts') void loadCounts();
+		if (tab === 'transfers') void transfersLoader.run(loadTransfers);
+		if (tab === 'counts') void countsLoader.run(loadCounts);
 	});
 
 	function applyFilters() {
 		pageNo = 1;
-		void load();
+		void stockLoader.run(load);
 	}
 
 	let canAdjust = $derived(auth.hasRole('admin', 'manager'));
@@ -251,6 +295,7 @@
 <Tabs
 	tabs={[
 		{ id: 'stock', label: 'Existencias', count: total },
+		{ id: 'recs', label: 'Recomendaciones de la IA', count: recs.length },
 		{ id: 'transfers', label: 'Traslados' },
 		{ id: 'counts', label: 'Conteos' }
 	]}
@@ -288,125 +333,176 @@
 		<Button type="submit">Filtrar</Button>
 	</form>
 
-	<div class="table-wrap">
-		<table class="data">
-			<thead>
-				<tr>
-					<th>SKU</th>
-					<th>Producto</th>
-					<th>Bodega</th>
-					<th>Estado</th>
-					<th class="num">Disponible</th>
-					<th class="num">Reservado</th>
-					<th class="num">En tránsito</th>
-					<th class="num">Punto de reorden</th>
-					<th class="num">Cobertura</th>
-					<th class="num">Valor</th>
-				</tr>
-			</thead>
-			<tbody>
-				{#each items as i (i.product_id + '-' + i.warehouse_id)}
-					<tr
-						class="clickable"
-						tabindex="0"
-						onclick={() => open(i)}
-						onkeydown={(e) => e.key === 'Enter' && open(i)}
-					>
-						<td class="mono">{i.sku}</td>
-						<td>
-							{i.product_name}
-							{#if i.promotion_suggested}<Badge tone="ai">Promoción sugerida</Badge>{/if}
-						</td>
-						<td>{i.warehouse_code}</td>
-						<td><StockBadge status={i.status} /></td>
-						<td class="num">{formatNumber(i.available)}</td>
-						<td class="num">{formatNumber(i.reserved)}</td>
-						<td class="num">{formatNumber(i.in_transit)}</td>
-						<td class="num">{formatNumber(i.reorder_point)}</td>
-						<td class="num"
-							>{i.days_of_cover === null || i.days_of_cover === undefined
-								? '—'
-								: `${formatNumber(i.days_of_cover, 1)} d`}</td
-						>
-						<td class="num">{formatCop(i.stock_value)}</td>
-					</tr>
-				{/each}
-			</tbody>
-		</table>
-	</div>
-	<Pagination page={pageNo} size={SIZE} {total} onchange={(p) => ((pageNo = p), load())} />
-{:else if tab === 'transfers'}
-	<div class="table-wrap">
-		<table class="data">
-			<thead>
-				<tr
-					><th>Número</th><th>Ruta</th><th>Productos</th><th>Estado</th><th>Creado</th><th>Salió</th
-					><th>Llegó</th></tr
-				>
-			</thead>
-			<tbody>
-				{#each transfers as t (t.id)}
+	<LoadState loader={stockLoader} what="las existencias" onretry={() => stockLoader.run(load)}>
+		<div class="table-wrap">
+			<table class="data">
+				<thead>
 					<tr>
-						<td class="mono">{t.number}</td>
-						<td>{t.from_warehouse_code} → {t.to_warehouse_code}</td>
-						<td>{t.items.map((i) => `${i.sku} × ${i.quantity}`).join(', ')}</td>
-						<td><StatusBadge map={TRANSFER_STATUS} value={t.status} /></td>
-						<td>{formatDateTime(t.created_at)}</td>
-						<td>{formatDateTime(t.shipped_at)}</td>
-						<td>{formatDateTime(t.received_at)}</td>
+						<th>SKU</th>
+						<th>Producto</th>
+						<th>Bodega</th>
+						<th>Estado</th>
+						<th class="num">Disponible</th>
+						<th class="num">Reservado</th>
+						<th class="num">En tránsito</th>
+						<th class="num">Punto de reorden</th>
+						<th class="num">Cobertura</th>
+						<th class="num">Valor</th>
 					</tr>
-				{:else}
-					<tr><td colspan="7" class="text-muted">No hay traslados.</td></tr>
-				{/each}
-			</tbody>
-		</table>
-	</div>
-{:else}
-	<div class="table-wrap">
-		<table class="data">
-			<thead>
-				<tr
-					><th>Fecha</th><th>SKU</th><th>Bodega</th><th class="num">Kardex</th><th class="num"
-						>Físico</th
-					><th class="num">Diferencia</th><th>Estado</th><th>Contó</th></tr
-				>
-			</thead>
-			<tbody>
-				{#each counts as c (c.id)}
-					<tr>
-						<td>{formatDateTime(c.counted_at)}</td>
-						<td class="mono">{c.sku}</td>
-						<td>{c.warehouse_code}</td>
-						<td class="num">{formatNumber(c.system_qty)}</td>
-						<td class="num">{formatNumber(c.counted_qty)}</td>
-						<td class="num"
-							>{c.difference > 0 ? '+' : ''}{formatNumber(c.difference)} ({formatPct(
-								c.difference_pct
-							)})</td
+				</thead>
+				<tbody>
+					{#each items as i (i.product_id + '-' + i.warehouse_id)}
+						<tr
+							class="clickable"
+							tabindex="0"
+							onclick={() => open(i)}
+							onkeydown={(e) => e.key === 'Enter' && open(i)}
 						>
-						<td>
-							<Badge
-								tone={c.status === 'discrepancy'
-									? 'warning'
-									: c.status === 'adjusted'
-										? 'success'
-										: 'neutral'}
+							<td class="mono nowrap">{i.sku}</td>
+							<td>
+								{i.product_name}
+								{#if i.promotion_suggested}<Badge tone="ai">Promoción sugerida</Badge>{/if}
+							</td>
+							<td class="nowrap">{i.warehouse_code}</td>
+							<td class="nowrap"><StockBadge status={i.status} /></td>
+							<td class="num">{formatNumber(i.available)}</td>
+							<td class="num">{formatNumber(i.reserved)}</td>
+							<td class="num">{formatNumber(i.in_transit)}</td>
+							<td class="num">{formatNumber(i.reorder_point)}</td>
+							<td class="num"
+								>{i.days_of_cover === null || i.days_of_cover === undefined
+									? '—'
+									: `${formatNumber(i.days_of_cover, 1)} d`}</td
 							>
-								{c.status === 'discrepancy'
-									? 'Con diferencia'
-									: c.status === 'adjusted'
-										? 'Ajustado'
-										: 'Coincide'}
-							</Badge>
-						</td>
-						<td>{c.counted_by ?? '—'}</td>
-					</tr>
-				{:else}
-					<tr><td colspan="8" class="text-muted">No hay conteos registrados.</td></tr>
-				{/each}
-			</tbody>
-		</table>
+							<td class="num">{formatCop(i.stock_value)}</td>
+						</tr>
+					{:else}
+						<tr
+							><td colspan="10" class="text-muted">Ningún producto coincide con los filtros.</td
+							></tr
+						>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+		<Pagination
+			page={pageNo}
+			size={SIZE}
+			{total}
+			onchange={(p) => ((pageNo = p), stockLoader.run(load))}
+		/>
+	</LoadState>
+{:else if tab === 'recs'}
+	<div class="filters">
+		<Field label="Bodega">
+			<select bind:value={recWarehouse} onchange={() => recLoader.run(loadRecommendations)}>
+				<option value="">Todas</option>
+				{#each warehouses as w (w.id)}<option value={String(w.id)}>{w.code} · {w.name}</option
+					>{/each}
+			</select>
+		</Field>
 	</div>
+	<p class="text-muted small intro">
+		Lo que la IA haría hoy con cada existencia que necesita atención, con las mismas reglas del
+		ciclo de reabastecimiento: punto de reorden, pronóstico de demanda y puntaje de proveedores.
+		Consultarlas no ejecuta nada.
+	</p>
+	<LoadState
+		loader={recLoader}
+		what="las recomendaciones"
+		onretry={() => recLoader.run(loadRecommendations)}
+	>
+		<div class="stack">
+			{#each recs as rec (rec.product_id + '-' + rec.warehouse_id)}
+				<RecommendationCard {rec} onopen={openFromRecommendation} />
+			{:else}
+				<EmptyState title="Todo en orden: ninguna existencia necesita acción">
+					Ningún producto está bajo su punto de reorden ni por encima de su tope.
+				</EmptyState>
+			{/each}
+		</div>
+	</LoadState>
+{:else if tab === 'transfers'}
+	<LoadState
+		loader={transfersLoader}
+		what="los traslados"
+		onretry={() => transfersLoader.run(loadTransfers)}
+	>
+		<div class="table-wrap">
+			<table class="data">
+				<thead>
+					<tr
+						><th>Número</th><th>Ruta</th><th>Productos</th><th>Estado</th><th>Creado</th><th
+							>Salió</th
+						><th>Llegó</th></tr
+					>
+				</thead>
+				<tbody>
+					{#each transfers as t (t.id)}
+						<tr>
+							<td class="mono">{t.number}</td>
+							<td>{t.from_warehouse_code} → {t.to_warehouse_code}</td>
+							<td>{t.items.map((i) => `${i.sku} × ${i.quantity}`).join(', ')}</td>
+							<td><StatusBadge map={TRANSFER_STATUS} value={t.status} /></td>
+							<td>{formatDateTime(t.created_at)}</td>
+							<td>{formatDateTime(t.shipped_at)}</td>
+							<td>{formatDateTime(t.received_at)}</td>
+						</tr>
+					{:else}
+						<tr><td colspan="7" class="text-muted">No hay traslados.</td></tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	</LoadState>
+{:else}
+	<LoadState loader={countsLoader} what="los conteos" onretry={() => countsLoader.run(loadCounts)}>
+		<div class="table-wrap">
+			<table class="data">
+				<thead>
+					<tr
+						><th>Fecha</th><th>SKU</th><th>Bodega</th><th class="num">Kardex</th><th class="num"
+							>Físico</th
+						><th class="num">Diferencia</th><th>Estado</th><th>Contó</th></tr
+					>
+				</thead>
+				<tbody>
+					{#each counts as c (c.id)}
+						<tr>
+							<td>{formatDateTime(c.counted_at)}</td>
+							<td class="mono">{c.sku}</td>
+							<td>{c.warehouse_code}</td>
+							<td class="num">{formatNumber(c.system_qty)}</td>
+							<td class="num">{formatNumber(c.counted_qty)}</td>
+							<td class="num"
+								>{c.difference > 0 ? '+' : ''}{formatNumber(c.difference)} ({formatPct(
+									c.difference_pct
+								)})</td
+							>
+							<td>
+								<Badge
+									tone={c.status === 'discrepancy'
+										? 'warning'
+										: c.status === 'adjusted'
+											? 'success'
+											: 'neutral'}
+								>
+									{c.status === 'discrepancy'
+										? 'Con diferencia'
+										: c.status === 'adjusted'
+											? 'Ajustado'
+											: 'Coincide'}
+								</Badge>
+							</td>
+							<td>{c.counted_by ?? '—'}</td>
+						</tr>
+					{:else}
+						<tr><td colspan="8" class="text-muted">No hay conteos registrados.</td></tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	</LoadState>
 {/if}
 
 <Drawer
@@ -422,6 +518,16 @@
 			{#if selected.reorder_blocked}<Badge tone="warning">Recompra bloqueada</Badge>{/if}
 			{#if selected.promotion_suggested}<Badge tone="ai">Promoción sugerida por la IA</Badge>{/if}
 		</div>
+		<section class="stack" aria-label="Recomendación de la IA">
+			<h3>Recomendación de la IA</h3>
+			{#if selectedRec}
+				<RecommendationCard rec={selectedRec} />
+			{:else}
+				<p class="text-muted small">
+					Nada que hacer por ahora: el disponible está entre el punto de reorden y el tope.
+				</p>
+			{/if}
+		</section>
 		<dl class="facts">
 			<dt>En mano</dt>
 			<dd>{formatNumber(selected.on_hand)} und</dd>
@@ -578,6 +684,14 @@
 </Modal>
 
 <style>
+	.nowrap {
+		white-space: nowrap;
+	}
+
+	.intro {
+		max-width: 80ch;
+	}
+
 	h3 {
 		margin: 0;
 		font-size: var(--text-md);
