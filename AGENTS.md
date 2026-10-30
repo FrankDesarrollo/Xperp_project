@@ -665,7 +665,7 @@ Disponible = `on_hand - reserved`. En tránsito se calcula con las OC y traslado
 | purchasing | `GET /suppliers`, `GET /suppliers/{id}/offers`, `GET POST /purchase-orders`, `GET /purchase-orders/{id}`, `POST /purchase-orders/{id}/send`, `POST /purchase-orders/{id}/cancel`, `GET /purchase-orders/{id}/pdf` |
 | logistics | `GET /warehouse-tasks?assigned_to=me&status`, `POST /warehouse-tasks/{id}/start`, `POST /warehouse-tasks/{id}/complete`, `GET /carriers`, `GET /shipments`, `GET /shipments/{id}/label` |
 | finance | `GET /budgets?period`, `GET /accounts-payable` |
-| ai | `GET /ai/decisions`, `GET /ai/decisions/{id}`, `POST /ai/decisions/{id}/revert`, `GET /approvals?status`, `POST /approvals/{id}/approve`, `POST /approvals/{id}/reject`, `GET PUT /ai/policies`, `GET PUT /ai/settings` |
+| ai | `GET /ai/decisions`, `GET /ai/decisions/{id}`, `POST /ai/decisions/{id}/revert`, `GET /approvals?status`, `POST /approvals/{id}/approve`, `POST /approvals/{id}/reject`, `GET PUT /ai/policies`, `GET PUT /ai/settings`, `GET /ai/recommendations?warehouse_id&product_id` |
 | assistant | `POST /assistant/messages`, `GET /assistant/conversations/{id}` |
 | dashboard | `GET /dashboard/kpis?from&to&warehouse_id`, `GET /dashboard/series?metric&from&to` |
 | notifications | `GET /notifications`, `POST /notifications/{id}/read`, `GET /stream` (SSE) |
@@ -793,6 +793,7 @@ Las tools de lectura devuelven datos. Las de escritura no ejecutan nada por su c
 | `get_customer_history(customer_id, sku)` | lectura |
 | `quote_carriers(sales_order_id)` | lectura |
 | `query_kpis(metric, from, to, warehouse)` | lectura |
+| `list_recommendations(sku, warehouse)` | lectura |
 | `create_purchase_order(supplier, warehouse, items, reason)` | escritura |
 | `reassign_purchase_order(po_number, new_supplier, reason)` | escritura |
 | `cancel_purchase_order(po_number, reason)` | escritura |
@@ -821,7 +822,11 @@ Las tools de lectura devuelven datos. Las de escritura no ejecutan nada por su c
 
 ### 8.9 Asistente
 
-Responde preguntas como "¿qué se agota esta semana?", "¿por qué se le compró a Mayorista Central?" o "¿cuánto llevamos gastado en aseo?". Solo usa tools de lectura y nunca genera SQL.
+Responde preguntas como "¿qué se agota esta semana?", "¿qué me recomiendas reponer?", "¿hay exceso de inventario?", "¿por qué se le compró a Mayorista Central?" o "¿cuánto llevamos gastado en aseo?". Solo usa tools de lectura y nunca genera SQL.
+
+### 8.10 Recomendaciones de inventario
+
+`GET /ai/recommendations` dice qué haría hoy el ciclo de reabastecimiento con cada existencia que necesita atención, y por qué: comprar (al proveedor con mejor puntaje y en la cantidad de `ReorderRules`), trasladar (si es urgente y otra bodega tiene más de 30 días), esperar la OC en camino, revisar una propuesta que espera aprobación, o no reponer por exceso. Usa las mismas reglas que el agente (`StockAdvice`, `ReorderRules`, `SupplierScorer`, el pronóstico y el plan de traslado), no ejecuta nada, no escribe en `ai_decisions` y no llama al LLM. No anticipa la consolidación por proveedor ni la priorización por presupuesto, que dependen del plan completo del día.
 
 ---
 

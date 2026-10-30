@@ -40,8 +40,12 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 - **[backend]** Pruebas unitarias de reglas, Holt-Winters, puntajes, políticas, anomalías y planificador de pedidos, más `DemoFlowIT` con Testcontainers (35 + 1).
 - **[frontend]** Pruebas de formato y del parser SSE con Vitest, y prueba e2e con Playwright sobre MSW (login y tablero).
 
+- **[contracts]** `GET /ai/recommendations` y el esquema `StockRecommendation`: qué recomienda la IA para cada existencia que necesita atención, con cantidad, proveedor o bodega de origen y el porqué.
+- **[ai]** `StockAdvisor` y las reglas puras `StockAdvice` (comprar, trasladar, OC en camino, por aprobar, exceso; prioridad alta, media o baja), con 12 pruebas y 6 mutaciones que las pruebas detectan. La tool de lectura `list_recommendations` deja que el asistente, con o sin LLM, responda «¿qué me recomiendas reponer?» y «¿hay exceso de inventario?».
+
 ### Cambiado
 
+- **[ai]** `TransferAgent.donor` y el cálculo de la cantidad a trasladar (`TransferAgent.plan`) son estáticos y los comparten el agente y las recomendaciones; el agente usa `StockAdvice.urgent` para decidir si traslada.
 - **[repo]** `README.md` ahora explica cómo levantar el proyecto, los comandos de calidad y el flujo de trabajo.
 - **[contracts]** `events.md` con los campos reales de cada evento de dominio y SSE; `partners.yaml` con los endpoints `/admin` de partners-mock.
 - **[docs]** ADR [0003](docs/decisions/0003-desviaciones-de-la-implementacion.md): desviaciones de la implementación respecto a `AGENTS.md` (punto de reorden con día de revisión, eventos de webhooks, llamadas de la simulación a la IA, SPI entre módulos, SQL del tablero, multiempresa en webhooks).
@@ -49,6 +53,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 ### Corregido
 
+- **[ai]** El asistente sin LLM respondía con las ventas cualquier pregunta sobre inventario, porque «inventario» contiene «venta»; ahora las palabras clave se buscan al comienzo de una palabra.
 - **[ai]** El resumen diario contaba 0 pedidos; ahora usa la serie de pedidos del día. Se corrigió la redacción "1 días" en las justificaciones.
 - **[ai]** Una OC rechazada se reasignaba siempre al proveedor de emergencia; ahora el peso de urgencia depende de la cobertura real y se respeta el proveedor preferido.
 - **[ai]** Se evitan guías duplicadas cuando el listener y el reintento horario compiten por el mismo pedido.
