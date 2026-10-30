@@ -8,6 +8,7 @@ import com.xperp.ai.policies.ActionGateway;
 import com.xperp.ai.policies.ActionProposal;
 import com.xperp.ai.policies.AiSettingsService;
 import com.xperp.ai.rules.ReorderRules;
+import com.xperp.ai.rules.StockAdvice;
 import com.xperp.ai.scoring.SupplierScorer;
 import com.xperp.catalog.api.CatalogService;
 import com.xperp.catalog.api.ProductDto;
@@ -143,8 +144,8 @@ class ReplenishmentAgent {
       double cover = ReorderRules.daysOfCover(available, daily);
 
       // Traslado antes que compra: quiebre o riesgo aquí y más de 30 días en la otra bodega.
-      if (available <= 0 || cover < 2) {
-        InventoryRow donor = transfers.donor(rows, row);
+      if (StockAdvice.urgent(available, cover)) {
+        InventoryRow donor = TransferAgent.donor(rows, row);
         if (donor != null && row.inTransit() == 0) {
           if (transfers.propose(row, donor, today, triggerEvent)) {
             transfersProposed++;

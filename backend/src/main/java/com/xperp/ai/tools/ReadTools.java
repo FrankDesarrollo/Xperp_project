@@ -1,5 +1,6 @@
 package com.xperp.ai.tools;
 
+import com.xperp.ai.agent.StockAdvisor;
 import com.xperp.ai.decisions.AiDecision;
 import com.xperp.ai.decisions.AiDecisionRepository;
 import com.xperp.ai.forecasting.ForecastService;
@@ -53,6 +54,7 @@ public class ReadTools {
   private final ForecastService forecasts;
   private final DashboardQueries dashboard;
   private final AiDecisionRepository decisions;
+  private final StockAdvisor advisor;
   private final Clock clock;
 
   ReadTools(
@@ -65,6 +67,7 @@ public class ReadTools {
       ForecastService forecasts,
       DashboardQueries dashboard,
       AiDecisionRepository decisions,
+      StockAdvisor advisor,
       Clock clock) {
     this.inventory = inventory;
     this.catalog = catalog;
@@ -75,6 +78,7 @@ public class ReadTools {
     this.forecasts = forecasts;
     this.dashboard = dashboard;
     this.decisions = decisions;
+    this.advisor = advisor;
     this.clock = clock;
   }
 
@@ -127,6 +131,46 @@ public class ReadTools {
         .sorted(Comparator.comparingDouble(r -> r.stock().daysOfCover()))
         .limit(25)
         .map(this::stockRow)
+        .toList();
+  }
+
+  @Tool(
+      name = "list_recommendations",
+      description =
+          "Recomendaciones de la IA sobre el inventario: qué comprar y a quién, qué trasladar, qué OC esperar y qué tiene exceso, con cantidad y el porqué. De la más urgente a la menos.")
+  public List<Map<String, Object>> listRecommendations(
+      @ToolParam(description = "SKU, por ejemplo ABA-001; vacío para todos", required = false)
+          String sku,
+      @ToolParam(
+              description = "Código de bodega (CAL-01 o BOG-01); vacío para todas",
+              required = false)
+          String warehouse) {
+    record(
+        "list_recommendations",
+        Map.of("sku", sku == null ? "" : sku, "warehouse", warehouse == null ? "" : warehouse));
+    // Un SKU o una bodega que no existen no deben traer todo: se filtra por un id imposible.
+    Long productId =
+        sku == null || sku.isBlank() ? null : product(sku).map(ProductDto::id).orElse(-1L);
+    Long warehouseId =
+        warehouse == null || warehouse.isBlank()
+            ? null
+            : inventory.warehouseByCode(warehouse).map(WarehouseDto::id).orElse(-1L);
+    return advisor.recommendations(warehouseId, productId).stream()
+        .limit(25)
+        .map(
+            a -> {
+              Map<String, Object> m = new LinkedHashMap<>();
+              m.put("sku", a.row().sku());
+              m.put("producto", a.row().productName());
+              m.put("bodega", a.row().warehouseCode());
+              m.put("accion", a.kind().name().toLowerCase(Locale.ROOT));
+              m.put("prioridad", a.priority().name().toLowerCase(Locale.ROOT));
+              m.put("cantidad", a.quantity());
+              m.put("proveedor", a.supplierName());
+              m.put("titulo", a.title());
+              m.put("razon", a.reason());
+              return m;
+            })
         .toList();
   }
 
