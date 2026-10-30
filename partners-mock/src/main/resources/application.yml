@@ -6,6 +6,12 @@ spring:
   threads:
     virtual:
       enabled: true
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    default-property-inclusion: non_null
+    time-zone: America/Bogota
+    serialization:
+      write-dates-as-timestamps: false
 
 server:
   port: 8101
@@ -16,3 +22,7 @@ xperp:
     webhook-secret: ${WEBHOOK_SECRET}
     backend-url: ${BACKEND_URL:http://localhost:8080}
     random-seed: ${SIM_RANDOM_SEED:42}
+
+logging:
+  level:
+    com.xperp.partners: INFO

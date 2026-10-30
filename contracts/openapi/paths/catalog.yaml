@@ -1,0 +1,104 @@
+categories:
+  get:
+    tags: [catalog]
+    operationId: listCategories
+    summary: Categorías del catálogo
+    responses:
+      "200":
+        description: Categorías
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: ../schemas/catalog.yaml#/Category
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+
+products:
+  get:
+    tags: [catalog]
+    operationId: listProducts
+    summary: Productos, con búsqueda y filtro por categoría
+    parameters:
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: category_id
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      - $ref: ../schemas/common.yaml#/parameters/Page
+      - $ref: ../schemas/common.yaml#/parameters/Size
+    responses:
+      "200":
+        description: Página de productos
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/catalog.yaml#/ProductPage
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+  post:
+    tags: [catalog]
+    operationId: createProduct
+    summary: Crea un producto
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/catalog.yaml#/ProductInput
+    responses:
+      "201":
+        description: Producto creado
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/catalog.yaml#/Product
+      "400":
+        $ref: ../schemas/common.yaml#/responses/BadRequest
+      "409":
+        $ref: ../schemas/common.yaml#/responses/Conflict
+
+product:
+  parameters:
+    - $ref: ../schemas/common.yaml#/parameters/Id
+  get:
+    tags: [catalog]
+    operationId: getProduct
+    summary: Detalle de un producto
+    responses:
+      "200":
+        description: Producto
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/catalog.yaml#/Product
+      "404":
+        $ref: ../schemas/common.yaml#/responses/NotFound
+  put:
+    tags: [catalog]
+    operationId: updateProduct
+    summary: Actualiza un producto
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/catalog.yaml#/ProductInput
+    responses:
+      "200":
+        description: Producto actualizado
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/catalog.yaml#/Product
+      "400":
+        $ref: ../schemas/common.yaml#/responses/BadRequest
+      "404":
+        $ref: ../schemas/common.yaml#/responses/NotFound

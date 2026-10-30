@@ -1,0 +1,102 @@
+# Guion de escenarios (AGENTS.md, 2.13). Lo ejecuta el módulo simulation.
+# type:
+#   observe          solo se marca; el escenario ocurre por los datos iniciales o el calendario
+#   manual_po        una persona de compras crea y envía una OC
+#   inventory_count  conteo físico con una diferencia
+#   anomalous_order  un cliente pide mucho más de lo normal
+#   budget_pressure  compra de temporada que lleva la categoría por encima del 85 %
+# Los eventos de socios externos (rechazo, retraso, alza) se le envían a partners-mock al iniciar.
+scenarios:
+  - day: 1
+    time: "06:00"
+    type: observe
+    title: Aceite 1 L y leche UHT en CAL-01 arrancan bajos
+    expected: El ciclo diario genera OC; la leche va a PRV-03 por tiempo de entrega
+
+  - day: 1
+    time: "06:00"
+    type: observe
+    title: Pañales en 0 en BOG-01 y con 40 días en CAL-01
+    expected: Propone traslado en vez de comprar; pide aprobación
+
+  - day: 2
+    time: "00:00"
+    type: observe
+    title: Festivo
+    expected: Baja la demanda; no hay compras de pánico
+
+  - day: 3
+    time: "06:00"
+    type: observe
+    title: Papel higiénico en CAL-01 con pocos días de cobertura
+    expected: OC a PRV-06
+
+  - day: 5
+    time: "10:00"
+    type: observe
+    title: PRV-06 reporta retraso de 4 días
+    expected: Reasigna a PRV-09 y explica el sobrecosto
+
+  - day: 6
+    time: "08:00"
+    type: manual_po
+    title: Compras pide arroz a PRV-02 para BOG-01 y PRV-02 lo rechaza por falta de stock
+    expected: Reasigna a PRV-01
+    params: { supplier: PRV-02, warehouse: BOG-01, sku: ABA-001, cover_days: 10 }
+
+  - day: 10
+    time: "05:30"
+    type: observe
+    title: PRV-01 sube el café 18 %
+    expected: Alerta de precio; vuelve a calificar proveedores para ese SKU
+
+  - day: 15
+    time: "00:00"
+    type: observe
+    title: Quincena
+    expected: Pico de demanda; el pronóstico lo absorbe
+
+  - day: 15
+    time: "10:00"
+    type: inventory_count
+    title: "Conteo de detergente en CAL-01: kardex 1.260, físico 1.170"
+    expected: Alerta de discrepancia, ajuste pendiente de aprobación y tarea de reconteo
+    params: { sku: ASE-001, warehouse: CAL-01, ratio: 0.9286 }
+
+  - day: 16
+    time: "00:00"
+    type: observe
+    title: Festivo
+    expected: Baja la demanda
+
+  - day: 20
+    time: "11:00"
+    type: anomalous_order
+    title: Un mayorista pide 10 veces su volumen normal de azúcar
+    expected: Anomalía de venta; retiene el pedido para revisión antes de tratarlo como demanda real
+    params: { sku: ABA-005, segment: mayorista, warehouse: CAL-01, factor: 10 }
+
+  - day: 22
+    time: "08:00"
+    type: budget_pressure
+    title: CPE pasa el 85 % del presupuesto
+    expected: Prioriza por margen y días de cobertura; las OC restantes quedan para aprobación
+    params: { category: CPE, target_pct: 86, warehouse: CAL-01, supplier: PRV-07, skus: [CPE-006, CPE-001, CPE-002] }
+
+  - day: 1
+    time: "00:00"
+    type: observe
+    title: Caramelos con 90 días de inventario
+    expected: Sugiere promoción y bloquea la recompra
+
+  - day: 30
+    time: "23:00"
+    type: observe
+    title: Cierre de mes
+    expected: Resumen de compras, quiebres evitados y decisiones ejecutadas, aprobadas y rechazadas
+
+# Eventos que se configuran en partners-mock al iniciar la simulación
+partners:
+  - { type: supplier_delay, supplier: PRV-06, day: 5, time: "10:00", delay_days: 4, reason: "Retraso en el despacho desde Medellín" }
+  - { type: supplier_reject, supplier: PRV-02, sku: ABA-001, from_day: 6, reason: "Sin existencias de arroz blanco 1 kg" }
+  - { type: price_change, supplier: PRV-01, sku: ABA-011, day: 10, time: "00:00", increase_pct: 18 }

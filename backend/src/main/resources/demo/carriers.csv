@@ -1,0 +1,4 @@
+code,name,coverage,national,base_rate,rate_per_kg,on_time_rate
+TRP-01,Rápido Valle Logística,Cali|Yumbo|Jamundí|Palmira|Candelaria|Buga|Tuluá|Buenaventura,false,18000,450,0.95
+TRP-02,Envíos Cordillera S.A.S.,,true,25000,600,0.88
+TRP-03,TransCarga Express S.A.S.,Bogotá|Medellín|Cali|Pereira|Manizales|Armenia|Popayán|Tunja,false,32000,520,0.96

@@ -1,0 +1,73 @@
+# Finanzas: presupuestos y cuentas por pagar (AGENTS.md, sección 6.7).
+
+Budget:
+  type: object
+  required: [id, category_id, category_code, category_name, period, amount, committed, spent, available, usage_pct]
+  properties:
+    id:
+      type: integer
+      format: int64
+    category_id:
+      type: integer
+      format: int64
+    category_code:
+      type: string
+    category_name:
+      type: string
+    period:
+      type: string
+      examples: ["2026-11"]
+    amount:
+      $ref: common.yaml#/Money
+    committed:
+      $ref: common.yaml#/Money
+    spent:
+      $ref: common.yaml#/Money
+    available:
+      $ref: common.yaml#/Money
+    usage_pct:
+      type: number
+      format: double
+      description: (committed + spent) / amount × 100
+
+AccountPayable:
+  type: object
+  required: [id, purchase_order_id, purchase_order_number, supplier_id, supplier_name, amount, due_date, status]
+  properties:
+    id:
+      type: integer
+      format: int64
+    purchase_order_id:
+      type: integer
+      format: int64
+    purchase_order_number:
+      type: string
+    supplier_id:
+      type: integer
+      format: int64
+    supplier_name:
+      type: string
+    amount:
+      $ref: common.yaml#/Money
+    due_date:
+      type: string
+      format: date
+    status:
+      type: string
+      description: "open, paid"
+
+AccountPayablePage:
+  type: object
+  required: [items, total, page, size]
+  properties:
+    items:
+      type: array
+      items:
+        $ref: "#/AccountPayable"
+    total:
+      type: integer
+      format: int64
+    page:
+      type: integer
+    size:
+      type: integer

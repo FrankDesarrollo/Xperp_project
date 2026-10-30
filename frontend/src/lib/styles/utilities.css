@@ -20,3 +20,152 @@
 	font-variant-numeric: tabular-nums;
 	text-align: right;
 }
+
+.stack {
+	display: grid;
+	gap: var(--space-4);
+}
+
+.row {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	flex-wrap: wrap;
+}
+
+.spacer {
+	flex: 1;
+}
+
+.page-header {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: var(--space-4);
+	flex-wrap: wrap;
+	margin-bottom: var(--space-5);
+}
+
+.page-header h1 {
+	margin: 0;
+}
+
+.page-header p {
+	margin: var(--space-1) 0 0;
+	color: var(--color-text-muted);
+}
+
+.card {
+	background: var(--color-surface);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	padding: var(--space-5);
+	box-shadow: var(--shadow-sm);
+}
+
+.card > h2,
+.card > h3 {
+	font-size: var(--text-md);
+	margin-bottom: var(--space-4);
+}
+
+.grid-2 {
+	display: grid;
+	gap: var(--space-4);
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+}
+
+.grid-kpi {
+	display: grid;
+	gap: var(--space-4);
+	grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr));
+}
+
+.mono {
+	font-family: var(--font-mono);
+	font-size: var(--text-sm);
+}
+
+.small {
+	font-size: var(--text-sm);
+}
+
+.truncate {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.filters {
+	display: flex;
+	gap: var(--space-3);
+	flex-wrap: wrap;
+	align-items: flex-end;
+	margin-bottom: var(--space-4);
+}
+
+.table-wrap {
+	overflow-x: auto;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	background: var(--color-surface);
+}
+
+table.data {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: var(--text-sm);
+}
+
+table.data th {
+	text-align: left;
+	font-weight: var(--weight-medium);
+	color: var(--color-text-muted);
+	background: var(--color-surface-muted);
+	padding: var(--space-2) var(--space-3);
+	border-bottom: 1px solid var(--color-border);
+	white-space: nowrap;
+	position: sticky;
+	top: 0;
+}
+
+table.data td {
+	padding: var(--space-2) var(--space-3);
+	border-bottom: 1px solid var(--color-border);
+	vertical-align: middle;
+}
+
+table.data tr:last-child td {
+	border-bottom: none;
+}
+
+table.data tbody tr.clickable {
+	cursor: pointer;
+}
+
+table.data tbody tr.clickable:hover,
+table.data tbody tr.clickable:focus-visible {
+	background: var(--color-surface-muted);
+}
+
+table.data td.num,
+table.data th.num {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+
+dl.facts {
+	display: grid;
+	grid-template-columns: max-content 1fr;
+	gap: var(--space-2) var(--space-4);
+	margin: 0;
+	font-size: var(--text-sm);
+}
+
+dl.facts dt {
+	color: var(--color-text-muted);
+}
+
+dl.facts dd {
+	margin: 0;
+}

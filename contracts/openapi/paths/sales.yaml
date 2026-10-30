@@ -1,0 +1,133 @@
+customers:
+  get:
+    tags: [sales]
+    operationId: listCustomers
+    summary: Clientes
+    parameters:
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+      - $ref: ../schemas/common.yaml#/parameters/WarehouseIdQuery
+      - $ref: ../schemas/common.yaml#/parameters/Page
+      - $ref: ../schemas/common.yaml#/parameters/Size
+    responses:
+      "200":
+        description: Página de clientes
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/sales.yaml#/CustomerPage
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+
+sales-orders:
+  get:
+    tags: [sales]
+    operationId: listSalesOrders
+    summary: Pedidos de venta
+    parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - $ref: ../schemas/common.yaml#/parameters/WarehouseIdQuery
+      - name: q
+        in: query
+        required: false
+        description: Número de pedido o nombre del cliente
+        schema:
+          type: string
+      - $ref: ../schemas/common.yaml#/parameters/Page
+      - $ref: ../schemas/common.yaml#/parameters/Size
+    responses:
+      "200":
+        description: Página de pedidos, del más reciente al más antiguo
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/sales.yaml#/SalesOrderPage
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+  post:
+    tags: [sales]
+    operationId: createSalesOrder
+    summary: Crea un pedido de venta y reserva stock
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/sales.yaml#/SalesOrderRequest
+    responses:
+      "201":
+        description: Pedido creado
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/sales.yaml#/SalesOrder
+      "400":
+        $ref: ../schemas/common.yaml#/responses/BadRequest
+
+sales-order:
+  parameters:
+    - $ref: ../schemas/common.yaml#/parameters/Id
+  get:
+    tags: [sales]
+    operationId: getSalesOrder
+    summary: Detalle de un pedido
+    responses:
+      "200":
+        description: Pedido con sus líneas
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/sales.yaml#/SalesOrder
+      "404":
+        $ref: ../schemas/common.yaml#/responses/NotFound
+
+sales-order-cancel:
+  parameters:
+    - $ref: ../schemas/common.yaml#/parameters/Id
+  post:
+    tags: [sales]
+    operationId: cancelSalesOrder
+    summary: Cancela un pedido y libera la reserva
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/common.yaml#/ReasonRequest
+    responses:
+      "200":
+        description: Pedido cancelado
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/sales.yaml#/SalesOrder
+      "404":
+        $ref: ../schemas/common.yaml#/responses/NotFound
+      "409":
+        $ref: ../schemas/common.yaml#/responses/Conflict
+
+sales-order-release:
+  parameters:
+    - $ref: ../schemas/common.yaml#/parameters/Id
+  post:
+    tags: [sales]
+    operationId: releaseSalesOrder
+    summary: Libera un pedido retenido para revisión
+    responses:
+      "200":
+        description: Pedido liberado
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/sales.yaml#/SalesOrder
+      "404":
+        $ref: ../schemas/common.yaml#/responses/NotFound
+      "409":
+        $ref: ../schemas/common.yaml#/responses/Conflict

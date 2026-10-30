@@ -1,0 +1,69 @@
+# Patrón de demanda (AGENTS.md, 2.10):
+# demanda = base × factor_bodega × día_semana × quincena × festivo × temporada × ruido
+weekday:
+  MONDAY: 1.05
+  TUESDAY: 0.95
+  WEDNESDAY: 0.95
+  THURSDAY: 1.00
+  FRIDAY: 1.15
+  SATURDAY: 1.20
+  SUNDAY: 0.50
+
+# Días 15, 16, último del mes y 1 del mes siguiente
+payday: 1.25
+
+holiday: 0.40
+holiday_eve: 1.15
+
+# Diciembre: BEB y SNK 1,50; el resto 1,20
+season:
+  month: 12
+  categories: { BEB: 1.50, SNK: 1.50 }
+  default: 1.20
+
+# Ruido lognormal
+noise_sigma: 0.15
+
+# Pedidos por día en cada bodega
+orders_per_day:
+  CAL-01: 90
+  BOG-01: 40
+
+# Reparto de los pedidos entre 7:00 y 19:00, con picos de 9:00 a 11:00 y de 15:00 a 17:00.
+# Peso relativo de cada hora (hora de inicio).
+hourly_weights:
+  7: 0.6
+  8: 0.9
+  9: 1.6
+  10: 1.6
+  11: 1.0
+  12: 0.7
+  13: 0.7
+  14: 0.9
+  15: 1.5
+  16: 1.5
+  17: 0.9
+  18: 0.6
+
+# Ciudades de los clientes por bodega
+cities:
+  CAL-01:
+    Cali: 0.55
+    Palmira: 0.08
+    Jamundí: 0.06
+    Yumbo: 0.05
+    Tuluá: 0.05
+    Buga: 0.04
+    Buenaventura: 0.04
+    Popayán: 0.04
+    Pereira: 0.04
+    Armenia: 0.03
+    Medellín: 0.02
+  BOG-01:
+    Bogotá: 0.75
+    Soacha: 0.10
+    Chía: 0.08
+    Zipaquirá: 0.04
+    Tunja: 0.03
+
+customers: 120

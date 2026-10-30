@@ -1,0 +1,190 @@
+suppliers:
+  get:
+    tags: [purchasing]
+    operationId: listSuppliers
+    summary: Proveedores
+    responses:
+      "200":
+        description: Proveedores
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: ../schemas/purchasing.yaml#/Supplier
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+
+supplier-offers:
+  parameters:
+    - $ref: ../schemas/common.yaml#/parameters/Id
+  get:
+    tags: [purchasing]
+    operationId: listSupplierOffers
+    summary: Ofertas (productos y precios) de un proveedor
+    responses:
+      "200":
+        description: Ofertas
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: ../schemas/purchasing.yaml#/SupplierOffer
+      "404":
+        $ref: ../schemas/common.yaml#/responses/NotFound
+
+product-offers:
+  get:
+    tags: [purchasing]
+    operationId: listProductOffers
+    summary: Ofertas de todos los proveedores para un producto
+    parameters:
+      - name: product_id
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int64
+    responses:
+      "200":
+        description: Ofertas
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: ../schemas/purchasing.yaml#/SupplierOffer
+      "400":
+        $ref: ../schemas/common.yaml#/responses/BadRequest
+
+purchase-orders:
+  get:
+    tags: [purchasing]
+    operationId: listPurchaseOrders
+    summary: Órdenes de compra
+    parameters:
+      - name: status
+        in: query
+        required: false
+        description: Un estado o "open" para las abiertas
+        schema:
+          type: string
+      - name: supplier_id
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      - $ref: ../schemas/common.yaml#/parameters/WarehouseIdQuery
+      - $ref: ../schemas/common.yaml#/parameters/Page
+      - $ref: ../schemas/common.yaml#/parameters/Size
+    responses:
+      "200":
+        description: Página de OC, de la más reciente a la más antigua
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/purchasing.yaml#/PurchaseOrderPage
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+  post:
+    tags: [purchasing]
+    operationId: createPurchaseOrder
+    summary: Crea una OC manual
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/purchasing.yaml#/PurchaseOrderRequest
+    responses:
+      "201":
+        description: OC creada
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/purchasing.yaml#/PurchaseOrder
+      "400":
+        $ref: ../schemas/common.yaml#/responses/BadRequest
+      "409":
+        $ref: ../schemas/common.yaml#/responses/Conflict
+
+purchase-order:
+  parameters:
+    - $ref: ../schemas/common.yaml#/parameters/Id
+  get:
+    tags: [purchasing]
+    operationId: getPurchaseOrder
+    summary: Detalle de una OC con su línea de tiempo
+    responses:
+      "200":
+        description: OC
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/purchasing.yaml#/PurchaseOrder
+      "404":
+        $ref: ../schemas/common.yaml#/responses/NotFound
+
+purchase-order-send:
+  parameters:
+    - $ref: ../schemas/common.yaml#/parameters/Id
+  post:
+    tags: [purchasing]
+    operationId: sendPurchaseOrder
+    summary: Envía una OC en borrador al proveedor
+    responses:
+      "200":
+        description: OC enviada
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/purchasing.yaml#/PurchaseOrder
+      "404":
+        $ref: ../schemas/common.yaml#/responses/NotFound
+      "409":
+        $ref: ../schemas/common.yaml#/responses/Conflict
+
+purchase-order-cancel:
+  parameters:
+    - $ref: ../schemas/common.yaml#/parameters/Id
+  post:
+    tags: [purchasing]
+    operationId: cancelPurchaseOrder
+    summary: Cancela una OC que todavía no se ha despachado
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/common.yaml#/ReasonRequest
+    responses:
+      "200":
+        description: OC cancelada
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/purchasing.yaml#/PurchaseOrder
+      "404":
+        $ref: ../schemas/common.yaml#/responses/NotFound
+      "409":
+        $ref: ../schemas/common.yaml#/responses/Conflict
+
+purchase-order-pdf:
+  parameters:
+    - $ref: ../schemas/common.yaml#/parameters/Id
+  get:
+    tags: [purchasing]
+    operationId: getPurchaseOrderPdf
+    summary: PDF de la OC
+    responses:
+      "200":
+        description: PDF
+        content:
+          application/pdf:
+            schema:
+              type: string
+              format: binary
+      "404":
+        $ref: ../schemas/common.yaml#/responses/NotFound

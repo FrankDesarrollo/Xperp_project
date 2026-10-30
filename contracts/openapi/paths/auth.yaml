@@ -36,3 +36,35 @@ me:
               $ref: ../schemas/auth.yaml#/CurrentUser
       "401":
         $ref: ../schemas/common.yaml#/responses/Unauthorized
+
+users:
+  get:
+    tags: [auth]
+    operationId: listUsers
+    summary: Usuarios de la empresa
+    responses:
+      "200":
+        description: Usuarios
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: ../schemas/auth.yaml#/UserSummary
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+
+company:
+  get:
+    tags: [auth]
+    operationId: getCompany
+    summary: Empresa de la sesión actual
+    responses:
+      "200":
+        description: Empresa
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/auth.yaml#/Company
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized

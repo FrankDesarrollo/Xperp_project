@@ -1,0 +1,207 @@
+# Logística: tareas de bodega, transportadoras y envíos (AGENTS.md, sección 6.6).
+
+TaskLine:
+  type: object
+  required: [product_id, sku, product_name, quantity]
+  properties:
+    product_id:
+      type: integer
+      format: int64
+    sku:
+      type: string
+    product_name:
+      type: string
+    quantity:
+      type: integer
+
+WarehouseTask:
+  type: object
+  required: [id, warehouse_id, warehouse_code, type, status, priority, title, created_at, lines]
+  properties:
+    id:
+      type: integer
+      format: int64
+    warehouse_id:
+      type: integer
+      format: int64
+    warehouse_code:
+      type: string
+    type:
+      type: string
+      description: "pick, pack, receive, count, transfer_out, transfer_in"
+    status:
+      type: string
+      description: "pending, in_progress, done, cancelled"
+    priority:
+      type: integer
+      description: 1 es la más alta
+    title:
+      type: string
+    detail:
+      type: [string, "null"]
+    sales_order_id:
+      type: [integer, "null"]
+      format: int64
+    purchase_order_id:
+      type: [integer, "null"]
+      format: int64
+    stock_transfer_id:
+      type: [integer, "null"]
+      format: int64
+    reference_number:
+      type: [string, "null"]
+    assigned_to_user_id:
+      type: [integer, "null"]
+      format: int64
+    assigned_to_name:
+      type: [string, "null"]
+    due_at:
+      type: [string, "null"]
+      format: date-time
+    started_at:
+      type: [string, "null"]
+      format: date-time
+    completed_at:
+      type: [string, "null"]
+      format: date-time
+    completed_by_name:
+      type: [string, "null"]
+    created_at:
+      type: string
+      format: date-time
+    lines:
+      type: array
+      items:
+        $ref: "#/TaskLine"
+
+WarehouseTaskPage:
+  type: object
+  required: [items, total, page, size]
+  properties:
+    items:
+      type: array
+      items:
+        $ref: "#/WarehouseTask"
+    total:
+      type: integer
+      format: int64
+    page:
+      type: integer
+    size:
+      type: integer
+
+TaskCompletionLine:
+  type: object
+  required: [product_id, quantity]
+  properties:
+    product_id:
+      type: integer
+      format: int64
+    quantity:
+      type: integer
+      minimum: 0
+
+TaskCompletionRequest:
+  type: object
+  properties:
+    counted_qty:
+      type: [integer, "null"]
+      description: Para tareas de conteo
+    lines:
+      type: array
+      description: Para recepciones con cantidades distintas a las esperadas
+      items:
+        $ref: "#/TaskCompletionLine"
+
+Carrier:
+  type: object
+  required: [id, code, name, coverage_cities, national, on_time_rate, base_rate, rate_per_kg, is_active]
+  properties:
+    id:
+      type: integer
+      format: int64
+    code:
+      type: string
+    name:
+      type: string
+    coverage_cities:
+      type: array
+      items:
+        type: string
+    national:
+      type: boolean
+    on_time_rate:
+      type: number
+      format: double
+    base_rate:
+      $ref: common.yaml#/Money
+    rate_per_kg:
+      $ref: common.yaml#/Money
+    is_active:
+      type: boolean
+
+Shipment:
+  type: object
+  required: [id, sales_order_id, sales_order_number, carrier_id, carrier_code, carrier_name, service, tracking_number, status, cost, weight_kg, origin_city, destination_city, created_at]
+  properties:
+    id:
+      type: integer
+      format: int64
+    sales_order_id:
+      type: integer
+      format: int64
+    sales_order_number:
+      type: string
+    customer_name:
+      type: [string, "null"]
+    carrier_id:
+      type: integer
+      format: int64
+    carrier_code:
+      type: string
+    carrier_name:
+      type: string
+    service:
+      type: string
+    tracking_number:
+      type: string
+    status:
+      type: string
+      description: "created, in_transit, delivered, failed"
+    cost:
+      $ref: common.yaml#/Money
+    weight_kg:
+      type: number
+      format: double
+    origin_city:
+      type: string
+    destination_city:
+      type: string
+    eta:
+      type: [string, "null"]
+      format: date-time
+    shipped_at:
+      type: [string, "null"]
+      format: date-time
+    delivered_at:
+      type: [string, "null"]
+      format: date-time
+    created_at:
+      type: string
+      format: date-time
+
+ShipmentPage:
+  type: object
+  required: [items, total, page, size]
+  properties:
+    items:
+      type: array
+      items:
+        $ref: "#/Shipment"
+    total:
+      type: integer
+      format: int64
+    page:
+      type: integer
+    size:
+      type: integer

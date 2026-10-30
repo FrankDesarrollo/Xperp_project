@@ -39,6 +39,19 @@ Para levantar todo en contenedores: `docker compose up -d --build`.
 
 Para trabajar el frontend sin backend, usa los mocks de MSW con `PUBLIC_API_MOCK=true npm run dev`.
 
+Si otro PostgreSQL ya ocupa el puerto 5432 (por ejemplo, uno de WSL), pon `POSTGRES_PORT=5433` en `.env` y ajusta `DB_URL` a ese puerto.
+
+## La demo
+
+1. Entra como `admin@laceiba.demo` y abre **Simulación**.
+2. Pulsa **Iniciar**. Con 20 s por día, el mes simulado dura unos 10 minutos. Con el reloj en pausa, **Avanzar horas** salta días completos.
+3. La IA reabastece, asigna tareas, despacha y responde a rechazos, retrasos y anomalías. Cada decisión queda en **IA → Decisiones**.
+4. Las OC de $ 5.000.000 o más, los traslados y los ajustes de inventario esperan aprobación en **IA → Aprobaciones**, con `compras@` o `gerencia@`. Si nadie las aprueba, vencen a las 24 horas simuladas.
+
+Para dejar la simulación corriendo sola, levanta el backend con `SIM_AUTO_APPROVE=true`, que activa un aprobador virtual. El guion minuto a minuto está en [`docs/demo-script.md`](docs/demo-script.md).
+
+Con `LLM_PROVIDER=mock` (el valor por defecto) la demo funciona completa sin claves. Para usar un LLM real, define `LLM_PROVIDER` (`anthropic`, `openai` u `ollama`), `LLM_MODEL` y `LLM_API_KEY`.
+
 ## Estructura
 
 ```

@@ -1,6 +1,6 @@
 # API de partners-mock: proveedores (PRV-01..09) y transportadoras (TRP-01..03) simulados.
 # Referencia: AGENTS.md, secciones 7.3 y 7.4. Los webhooks de vuelta al backend se describen
-# en openapi/ (módulo webhooks) cuando se implementen.
+# en openapi/paths/platform.yaml (webhooks).
 openapi: 3.1.0
 info:
   title: Xperp partners-mock API
@@ -15,6 +15,8 @@ tags:
     description: Proveedores simulados
   - name: carriers
     description: Transportadoras simuladas
+  - name: admin
+    description: Control de la demo (solo lo usa el backend)
 
 paths:
   /suppliers/{code}/orders:
@@ -129,6 +131,52 @@ paths:
         "400":
           $ref: "#/components/responses/Error"
 
+
+  /admin/reset:
+    post:
+      tags: [admin]
+      operationId: resetPartners
+      summary: Borra órdenes, envíos, webhooks pendientes y eventos del guion
+      description: El backend lo llama en `POST /api/v1/simulation/reset`.
+      responses:
+        "204":
+          description: Reiniciado
+
+  /admin/scenarios:
+    post:
+      tags: [admin]
+      operationId: configureScenarios
+      summary: Reemplaza los eventos forzados del guion (retraso, rechazo, alza de precio)
+      description: El backend los envía desde `scenarios.yml` al iniciar o adelantar la simulación.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/ScenarioEvent"
+      responses:
+        "204":
+          description: Guion configurado
+
+  /admin/queue:
+    get:
+      tags: [admin]
+      operationId: getWebhookQueue
+      summary: Cuántos webhooks quedan programados
+      responses:
+        "200":
+          description: Tamaño de la cola
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [pending_webhooks]
+                properties:
+                  pending_webhooks:
+                    type: integer
+
 components:
   securitySchemes:
     partnersToken:
@@ -161,6 +209,31 @@ components:
             $ref: "#/components/schemas/Error"
 
   schemas:
+    ScenarioEvent:
+      type: object
+      required: [type, supplier, at]
+      properties:
+        type:
+          type: string
+          enum: [supplier_delay, supplier_reject, price_change]
+        supplier:
+          type: string
+          examples: [PRV-06]
+        at:
+          type: string
+          format: date-time
+          description: Hora simulada desde la que aplica el evento
+        sku:
+          type: string
+          description: Para supplier_reject y price_change
+        delay_days:
+          type: integer
+          description: Para supplier_delay
+        unit_cost:
+          type: string
+          description: Nuevo costo unitario (price_change), como string decimal
+        reason:
+          type: string
     Error:
       type: object
       required: [code, message]

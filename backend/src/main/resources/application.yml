@@ -39,13 +39,18 @@ spring:
   mail:
     host: ${MAIL_HOST:localhost}
     port: ${MAIL_PORT:1025}
+    properties:
+      mail.smtp.connectiontimeout: 2000
+      mail.smtp.timeout: 3000
+      mail.smtp.writetimeout: 3000
 
   modulith:
     events:
       jdbc:
         schema-initialization:
           enabled: false # la tabla event_publication la crea una migración de Flyway
-      republish-outstanding-events-on-restart: true
+      republish-outstanding-events-on-restart: false
+      completion-mode: delete
 
   # Proveedor de LLM: LLM_PROVIDER = mock | anthropic | openai | ollama.
   # Con "mock" ningún modelo de Spring AI se activa y se usa MockLlmGateway.
@@ -89,6 +94,8 @@ xperp:
     jwt-secret: ${JWT_SECRET}
     jwt-expires-minutes: ${JWT_EXPIRES_MINUTES:120}
   ai:
+    llm-provider: ${LLM_PROVIDER:mock}
+    llm-model: ${LLM_MODEL:}
     max-llm-calls-per-sim-day: ${LLM_MAX_CALLS_PER_SIM_DAY:30}
     shadow-mode: ${AI_SHADOW_MODE:false}
   simulation:

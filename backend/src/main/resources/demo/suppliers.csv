@@ -1,0 +1,10 @@
+code,name,nit,city,email,price_factor,lead_time_cal,min_order_amount,payment_terms_days,on_time_rate,fill_rate
+PRV-01,Granos del Valle S.A.S.,900100001-1,Cali,pedidos@granosdelvalle.demo,1.00,2,800000,30,0.95,0.97
+PRV-02,Molinera Andina S.A.S.,900100002-2,Bogotá,ventas@molineraandina.demo,0.95,4,1500000,45,0.85,0.95
+PRV-03,Lácteos La Pradera S.A.S.,900100003-3,Tuluá,pedidos@lacteoslapradera.demo,1.00,1,500000,15,0.92,0.97
+PRV-04,Bebidas del Trópico S.A.S.,900100004-4,Yumbo,comercial@bebidasdeltropico.demo,0.98,2,600000,30,0.93,0.98
+PRV-05,Químicos Hogar Limpio S.A.S.,900100005-5,Cali,pedidos@hogarlimpio.demo,1.00,3,700000,30,0.90,0.96
+PRV-06,Higiene Total Distribuciones S.A.S.,900100006-6,Medellín,ordenes@higienetotal.demo,0.92,5,1200000,60,0.70,0.90
+PRV-07,Cuidado Personal Andes S.A.S.,900100007-7,Bogotá,pedidos@cuidadoandes.demo,1.00,3,800000,30,0.93,0.97
+PRV-08,Dulces y Pasabocas del Pacífico S.A.S.,900100008-8,Cali,ventas@dulcespacifico.demo,1.00,2,500000,30,0.90,0.96
+PRV-09,Mayorista Central S.A.S.,900100009-9,Cali,ventas@mayoristacentral.demo,1.10,1,0,0,0.98,0.99

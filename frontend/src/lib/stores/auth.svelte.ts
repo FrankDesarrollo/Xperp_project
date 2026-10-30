@@ -1,6 +1,4 @@
-import type { components } from '$lib/api/schema';
-
-type CurrentUser = components['schemas']['CurrentUser'];
+import type { CurrentUser, Role } from '$lib/api/types';
 
 const TOKEN_KEY = 'xperp.token';
 
@@ -18,6 +16,7 @@ class AuthStore {
 	user = $state<CurrentUser | null>(null);
 
 	isAuthenticated = $derived(this.token !== null);
+	role = $derived<Role | undefined>(this.user?.role);
 
 	setSession(token: string, user: CurrentUser) {
 		this.token = token;
@@ -27,6 +26,14 @@ class AuthStore {
 		} catch {
 			// Sin almacenamiento disponible, la sesión dura lo que dure la pestaña
 		}
+	}
+
+	setUser(user: CurrentUser) {
+		this.user = user;
+	}
+
+	hasRole(...roles: Role[]): boolean {
+		return this.user !== null && roles.includes(this.user.role);
 	}
 
 	clear() {

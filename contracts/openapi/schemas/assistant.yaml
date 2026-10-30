@@ -1,0 +1,54 @@
+# Asistente del tablero: chat de solo lectura (AGENTS.md, sección 8.9).
+
+AssistantMessageRequest:
+  type: object
+  required: [content]
+  properties:
+    conversation_id:
+      type: [string, "null"]
+      description: Vacío para empezar una conversación nueva
+    content:
+      type: string
+      minLength: 1
+      maxLength: 2000
+
+AssistantMessage:
+  type: object
+  required: [id, role, content, created_at]
+  properties:
+    id:
+      type: integer
+      format: int64
+    role:
+      type: string
+      description: "user, assistant"
+    content:
+      type: string
+    tool_calls:
+      type: array
+      items:
+        type: object
+        additionalProperties: true
+    created_at:
+      type: string
+      format: date-time
+
+AssistantReply:
+  type: object
+  required: [conversation_id, message]
+  properties:
+    conversation_id:
+      type: string
+    message:
+      $ref: "#/AssistantMessage"
+
+AssistantConversation:
+  type: object
+  required: [id, messages]
+  properties:
+    id:
+      type: string
+    messages:
+      type: array
+      items:
+        $ref: "#/AssistantMessage"

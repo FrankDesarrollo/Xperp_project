@@ -1,0 +1,233 @@
+notifications:
+  get:
+    tags: [notifications]
+    operationId: listNotifications
+    summary: Notificaciones del usuario de la sesión
+    parameters:
+      - $ref: ../schemas/common.yaml#/parameters/Page
+      - $ref: ../schemas/common.yaml#/parameters/Size
+    responses:
+      "200":
+        description: Página de notificaciones
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/platform.yaml#/NotificationPage
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+
+notification-read:
+  parameters:
+    - $ref: ../schemas/common.yaml#/parameters/Id
+  post:
+    tags: [notifications]
+    operationId: markNotificationRead
+    summary: Marca una notificación como leída
+    responses:
+      "204":
+        description: Marcada
+      "404":
+        $ref: ../schemas/common.yaml#/responses/NotFound
+
+notifications-read-all:
+  post:
+    tags: [notifications]
+    operationId: markAllNotificationsRead
+    summary: Marca todas las notificaciones como leídas
+    responses:
+      "204":
+        description: Marcadas
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+
+stream:
+  get:
+    tags: [stream]
+    operationId: stream
+    summary: Eventos en tiempo real (SSE). Ver contracts/events.md
+    description: |
+      Lo implementa un controller escrito a mano con `SseEmitter`; el generador no produce
+      una firma útil para `text/event-stream`.
+    responses:
+      "200":
+        description: Flujo de eventos
+        content:
+          text/event-stream:
+            schema:
+              type: string
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+
+simulation-clock:
+  get:
+    tags: [simulation]
+    operationId: getSimulationClock
+    summary: Reloj simulado (también lo lee partners-mock, sin token)
+    security: []
+    responses:
+      "200":
+        description: Reloj
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/platform.yaml#/SimulationClock
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+
+simulation-start:
+  post:
+    tags: [simulation]
+    operationId: startSimulation
+    summary: Inicia o reanuda la simulación
+    responses:
+      "200":
+        description: Reloj
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/platform.yaml#/SimulationClock
+      "403":
+        $ref: ../schemas/common.yaml#/responses/Forbidden
+
+simulation-pause:
+  post:
+    tags: [simulation]
+    operationId: pauseSimulation
+    summary: Pausa la simulación
+    responses:
+      "200":
+        description: Reloj
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/platform.yaml#/SimulationClock
+      "403":
+        $ref: ../schemas/common.yaml#/responses/Forbidden
+
+simulation-speed:
+  put:
+    tags: [simulation]
+    operationId: setSimulationSpeed
+    summary: Cambia la velocidad (segundos reales por día simulado)
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/platform.yaml#/SimulationSpeedRequest
+    responses:
+      "200":
+        description: Reloj
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/platform.yaml#/SimulationClock
+      "400":
+        $ref: ../schemas/common.yaml#/responses/BadRequest
+      "403":
+        $ref: ../schemas/common.yaml#/responses/Forbidden
+
+simulation-reset:
+  post:
+    tags: [simulation]
+    operationId: resetSimulation
+    summary: Borra todo y vuelve a cargar la empresa demo
+    responses:
+      "200":
+        description: Reloj reiniciado
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/platform.yaml#/SimulationClock
+      "403":
+        $ref: ../schemas/common.yaml#/responses/Forbidden
+
+simulation-advance:
+  post:
+    tags: [simulation]
+    operationId: advanceSimulation
+    summary: Avanza el reloj un número de horas simuladas (útil para ensayar la demo)
+    parameters:
+      - name: hours
+        in: query
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 240
+    responses:
+      "200":
+        description: Reloj
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/platform.yaml#/SimulationClock
+      "403":
+        $ref: ../schemas/common.yaml#/responses/Forbidden
+
+simulation-scenarios:
+  get:
+    tags: [simulation]
+    operationId: listScenarios
+    summary: Guion de escenarios y su progreso
+    responses:
+      "200":
+        description: Escenarios
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: ../schemas/platform.yaml#/Scenario
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+
+webhook-suppliers:
+  post:
+    tags: [webhooks]
+    operationId: receiveSupplierWebhook
+    summary: Respuesta de un proveedor sobre una OC
+    security: []
+    parameters:
+      - name: X-Xperp-Signature
+        in: header
+        required: true
+        description: sha256=<HMAC del cuerpo con WEBHOOK_SECRET>
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/platform.yaml#/SupplierWebhook
+    responses:
+      "204":
+        description: Recibido
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+
+webhook-carriers:
+  post:
+    tags: [webhooks]
+    operationId: receiveCarrierWebhook
+    summary: Cambio de estado de un envío
+    security: []
+    parameters:
+      - name: X-Xperp-Signature
+        in: header
+        required: true
+        description: sha256=<HMAC del cuerpo con WEBHOOK_SECRET>
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/platform.yaml#/CarrierWebhook
+    responses:
+      "204":
+        description: Recibido
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized

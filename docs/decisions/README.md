@@ -15,3 +15,4 @@ Cada decisión de arquitectura y cada dependencia nueva se registra aquí con su
 |---|---|---|
 | [0001](0001-stack.md) | Stack tecnológico y versiones | Aceptado |
 | [0002](0002-esqueleto-del-repositorio.md) | Decisiones del esqueleto del repositorio | Propuesto |
+| [0003](0003-desviaciones-de-la-implementacion.md) | Desviaciones de la implementación respecto a AGENTS.md | Propuesto |

@@ -1,0 +1,14 @@
+# Inventario inicial (AGENTS.md, 2.9).
+# Regla general: on_hand = demanda_base × 15 días, redondeado hacia arriba a cajas, en ambas
+# bodegas (en BOG-01 con la demanda × 0,4). reserved = 0.
+default_cover_days: 15
+
+# Excepciones para que pasen cosas desde el primer día.
+exceptions:
+  - { sku: ABA-007, warehouse: CAL-01, cover_days: 3, why: Dispara compra el día 1 }
+  - { sku: BEB-001, warehouse: CAL-01, cover_days: 2, why: Compra urgente con el proveedor más rápido }
+  - { sku: ASE-007, warehouse: CAL-01, cover_days: 4, why: Compra a PRV-06, que se retrasa }
+  - { sku: CPE-006, warehouse: BOG-01, cover_days: 0, why: Quiebre de stock; la IA propone traslado }
+  - { sku: CPE-006, warehouse: CAL-01, cover_days: 40, why: Origen del traslado }
+  - { sku: SNK-006, warehouse: CAL-01, cover_days: 90, why: Producto estancado }
+  - { sku: ASE-001, warehouse: CAL-01, cover_days: 20, why: Diferencia en el conteo físico del día 15 }
