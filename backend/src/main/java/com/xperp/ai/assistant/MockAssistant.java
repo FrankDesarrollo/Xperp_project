@@ -58,6 +58,20 @@ public class MockAssistant {
     String text;
     if (q.contains("por que") || q.contains("porque") || q.contains("razon")) {
       text = why(q);
+    } else if (containsAny(
+        q,
+        "recomien",
+        "recomend",
+        "sugier",
+        "sugerencia",
+        "que compro",
+        "que pido",
+        "que hago",
+        "que debo",
+        "reponer")) {
+      text = recommendations(q);
+    } else if (containsAny(q, "exceso", "sobra", "sobrestock", "sobreinventario", "demasiado")) {
+      text = excess(q);
     } else if (containsAny(q, "agota", "quiebre", "se acaba", "faltan", "escase", "agotar")) {
       text = lowStock();
     } else if (containsAny(q, "gastado", "gasto", "presupuesto", "llevamos")) {
@@ -76,11 +90,91 @@ public class MockAssistant {
     } else {
       text =
           "Puedo responder preguntas de solo lectura sobre la operación. Por ejemplo: «¿qué se"
-              + " agota esta semana?», «¿por qué se le compró a Mayorista Central?», «¿cuánto"
+              + " agota esta semana?», «¿qué me recomiendas reponer?», «¿por qué se le compró a"
+              + " Mayorista Central?», «¿cuánto"
               + " llevamos gastado en aseo?», «¿cuánto hay de ABA-001?» o «¿cómo van las ventas"
               + " del mes?».";
     }
     return new Reply(text, tools.drainCalls());
+  }
+
+  /** Lo que recomienda la IA: de un SKU si lo nombran, o la lista de lo que hay que reponer. */
+  private String recommendations(String q) {
+    String sku = extractSku(q).orElse(null);
+    String warehouse = warehouseIn(q);
+    List<Map<String, Object>> recs = tools.listRecommendations(sku, warehouse);
+    String where = warehouse == null ? "" : " en " + warehouse;
+    if (sku != null) {
+      if (recs.isEmpty()) {
+        return ("Con %s%s no hay nada que hacer por ahora: el disponible está entre el punto de"
+                + " reorden y el tope.")
+            .formatted(sku, where);
+      }
+      StringBuilder sb = new StringBuilder();
+      for (Map<String, Object> r : recs) {
+        sb.append(
+            "• %s en %s: %s %s\n"
+                .formatted(
+                    r.get("sku"), r.get("bodega"), sentence(r.get("titulo")), r.get("razon")));
+      }
+      return sb.toString().trim();
+    }
+    List<Map<String, Object>> toAct =
+        recs.stream().filter(r -> !"excess".equals(r.get("accion"))).toList();
+    if (toAct.isEmpty()) {
+      return "Por ahora no recomiendo reponer nada%s: ningún SKU está bajo su punto de reorden sin una compra en camino."
+          .formatted(where);
+    }
+    StringBuilder sb =
+        new StringBuilder(
+            "Esto recomiendo hoy%s, de lo más urgente a lo menos:\n".formatted(where));
+    for (Map<String, Object> r : toAct.stream().limit(6).toList()) {
+      sb.append(
+          "• %s %s en %s: %s\n"
+              .formatted(
+                  r.get("sku"), r.get("producto"), r.get("bodega"), sentence(r.get("titulo"))));
+    }
+    if (toAct.size() > 6) {
+      sb.append("…y ").append(toAct.size() - 6).append(" más.\n");
+    }
+    sb.append("El porqué de cada una está en Inventario → Recomendaciones de la IA.");
+    return sb.toString();
+  }
+
+  private String excess(String q) {
+    String warehouse = warehouseIn(q);
+    List<Map<String, Object>> over =
+        tools.listRecommendations(null, warehouse).stream()
+            .filter(r -> "excess".equals(r.get("accion")))
+            .toList();
+    if (over.isEmpty()) {
+      return "No hay exceso: ningún SKU pasa su tope de 30 días de demanda.";
+    }
+    StringBuilder sb = new StringBuilder("Estos SKU tienen más de lo que cabe en su tope:\n");
+    for (Map<String, Object> r : over.stream().limit(10).toList()) {
+      sb.append(
+          "• %s %s en %s: %s\n"
+              .formatted(
+                  r.get("sku"), r.get("producto"), r.get("bodega"), sentence(r.get("titulo"))));
+    }
+    return sb.append("La IA no los repondrá hasta que bajen del punto de reorden.").toString();
+  }
+
+  /** Cierra con punto, sin duplicarlo cuando el texto ya termina en uno («S.A.S.»). */
+  private static String sentence(Object text) {
+    String t = String.valueOf(text).strip();
+    return t.endsWith(".") ? t : t + ".";
+  }
+
+  /** Bodega nombrada en la pregunta, o null si no nombra ninguna. */
+  private static String warehouseIn(String q) {
+    if (containsAny(q, "bog", "bogota")) {
+      return "BOG-01";
+    }
+    if (containsAny(q, "cal-01", "cal 01", "cal01", "cali")) {
+      return "CAL-01";
+    }
+    return null;
   }
 
   private String lowStock() {
@@ -292,9 +386,16 @@ public class MockAssistant {
     return " " + n.replaceAll("\\p{M}", "").toLowerCase(Locale.ROOT).replaceAll("[¿?¡!]", "") + " ";
   }
 
-  private static boolean containsAny(String q, String... words) {
+  /**
+   * ¿Alguna palabra aparece al comienzo de una palabra de la pregunta? Buscar en cualquier parte
+   * confundía «inventario» con «venta» y respondía las ventas a toda pregunta de inventario.
+   */
+  static boolean containsAny(String q, String... words) {
     for (String w : words) {
-      if (q.contains(w)) {
+      if (java.util.regex.Pattern.compile(
+              "(?<![\\p{L}\\d])" + java.util.regex.Pattern.quote(w.strip()))
+          .matcher(q)
+          .find()) {
         return true;
       }
     }
