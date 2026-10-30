@@ -28,6 +28,31 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 - **[frontend]** Stores con runes, tokens de diseño con tema claro y oscuro, utilidades de formato COP y de fecha con sus pruebas, y permisos por rol.
 - **[infra]** Docker Compose con PostgreSQL 16, Mailpit, backend, partners-mock, frontend (nginx) y Ollama opcional (perfil `ollama`). Hay un Dockerfile multietapa por servicio.
 
+- **[contracts]** Contrato OpenAPI completo de los 13 módulos (auth, catálogo, inventario, ventas, compras, logística, finanzas, IA, asistente, tablero, notificaciones, simulación y webhooks).
+- **[backend]** Migraciones V2, V100–V160, V500 y V510 con todo el modelo de datos de la sección 6.
+- **[backend]** Módulos de dominio completos: catálogo, inventario (reservas con bloqueo, kardex, conteos, traslados, ventas perdidas), ventas, compras (OC, ofertas, recepciones, PDF), logística (tareas, guías, transportadoras), finanzas (presupuesto y cuentas por pagar), notificaciones (app, correo a Mailpit, SSE) y tablero (KPIs y series).
+- **[ai]** Reglas de reorden, Holt-Winters, puntaje de proveedores y transportadoras, `PolicyEngine`, `ActionGateway`, aprobaciones, reversión, agentes (reabastecimiento, traslados, excepciones de OC, anomalías, discrepancias, precios, estancados, presupuesto, resumen diario), tools `@Tool`, LLM con Spring AI y modo mock, y asistente.
+- **[simulation]** Reloj simulado, generador de demanda, bodeguero virtual, guion de escenarios, carga demo con historial de 90 días y reinicio.
+- **[partners-mock]** Proveedores y transportadoras simulados con webhooks firmados (HMAC) y eventos forzados del guion.
+- **[frontend]** Todas las pantallas de la sección 11.1, componentes de UI y dominio, gráficas con ECharts, SSE en vivo y tema claro/oscuro.
+- **[infra]** Puerto de PostgreSQL configurable con `POSTGRES_PORT`.
+
+- **[backend]** Pruebas unitarias de reglas, Holt-Winters, puntajes, políticas, anomalías y planificador de pedidos, más `DemoFlowIT` con Testcontainers (35 + 1).
+- **[frontend]** Pruebas de formato y del parser SSE con Vitest, y prueba e2e con Playwright sobre MSW (login y tablero).
+
 ### Cambiado
 
 - **[repo]** `README.md` ahora explica cómo levantar el proyecto, los comandos de calidad y el flujo de trabajo.
+- **[contracts]** `events.md` con los campos reales de cada evento de dominio y SSE; `partners.yaml` con los endpoints `/admin` de partners-mock.
+- **[docs]** ADR [0003](docs/decisions/0003-desviaciones-de-la-implementacion.md): desviaciones de la implementación respecto a `AGENTS.md` (punto de reorden con día de revisión, eventos de webhooks, llamadas de la simulación a la IA, SPI entre módulos, SQL del tablero, multiempresa en webhooks).
+- **[docs]** Guion de la demo de 10 minutos y sección de la demo en el `README.md`.
+
+### Corregido
+
+- **[ai]** El resumen diario contaba 0 pedidos; ahora usa la serie de pedidos del día. Se corrigió la redacción "1 días" en las justificaciones.
+- **[ai]** Una OC rechazada se reasignaba siempre al proveedor de emergencia; ahora el peso de urgencia depende de la cobertura real y se respeta el proveedor preferido.
+- **[ai]** Se evitan guías duplicadas cuando el listener y el reintento horario compiten por el mismo pedido.
+- **[simulation]** Se eliminaron anomalías falsas en la demanda (tope por línea en `OrderPlanner`); solo queda la anomalía del guion del día 20.
+- **[partners-mock]** Las semillas aleatorias ahora se derivan con SHA-256; antes, con semillas correlacionadas, PRV-02 rechazaba 10 de 15 órdenes.
+- **[frontend]** Al recargar la página ya no se cierra la sesión si una petición se cancela; la sesión solo se borra con un 401.
+

@@ -1,0 +1,25 @@
+# Reglas de las ofertas (supplier_products), AGENTS.md sección 2.6.
+# unit_cost = costo del producto × factor de precio del proveedor, redondeado a la decena.
+min_order_cases: 5
+
+# Quién vende qué: categorías completas o SKU sueltos; "except" quita SKU.
+assortment:
+  PRV-01: { categories: [ABA] }
+  PRV-02: { categories: [ABA] }
+  PRV-03: { skus: [BEB-001, BEB-002, BEB-003, BEB-004, BEB-005, BEB-006] }
+  PRV-04: { categories: [BEB] }
+  PRV-05: { categories: [ASE], except: [ASE-007] }
+  PRV-06: { categories: [ASE, CPE] }
+  PRV-07: { categories: [CPE] }
+  PRV-08: { categories: [SNK] }
+  PRV-09: { categories: [ABA, BEB, ASE, CPE, SNK] }
+
+# Preferidos por categoría o por SKU (el SKU manda sobre la categoría).
+preferred:
+  categories: { ABA: PRV-01, BEB: PRV-04, ASE: PRV-05, CPE: PRV-07, SNK: PRV-08 }
+  skus: { BEB-001: PRV-03, BEB-002: PRV-03, ASE-007: PRV-06 }
+
+# Entrega a BOG-01: proveedores de Bogotá, 1 día; los demás, el tiempo a CAL-01 más 2 días.
+bogota_lead_time:
+  same_city_days: 1
+  extra_days: 2

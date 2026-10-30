@@ -1,0 +1,156 @@
+# Ventas: clientes y pedidos (AGENTS.md, sección 6.4).
+
+Customer:
+  type: object
+  required: [id, code, name, segment_code, segment_name, city, warehouse_id, is_active]
+  properties:
+    id:
+      type: integer
+      format: int64
+    code:
+      type: string
+    name:
+      type: string
+    document:
+      type: [string, "null"]
+    segment_code:
+      type: string
+      description: "tienda, minimercado, supermercado, mayorista, en_linea"
+    segment_name:
+      type: string
+    city:
+      type: string
+    address:
+      type: [string, "null"]
+    warehouse_id:
+      type: integer
+      format: int64
+    is_active:
+      type: boolean
+
+CustomerPage:
+  type: object
+  required: [items, total, page, size]
+  properties:
+    items:
+      type: array
+      items:
+        $ref: "#/Customer"
+    total:
+      type: integer
+      format: int64
+    page:
+      type: integer
+    size:
+      type: integer
+
+SalesOrderItem:
+  type: object
+  required: [id, product_id, sku, product_name, quantity, quantity_fulfilled, unit_price, line_total]
+  properties:
+    id:
+      type: integer
+      format: int64
+    product_id:
+      type: integer
+      format: int64
+    sku:
+      type: string
+    product_name:
+      type: string
+    quantity:
+      type: integer
+    quantity_fulfilled:
+      type: integer
+    unit_price:
+      $ref: common.yaml#/Money
+    line_total:
+      $ref: common.yaml#/Money
+
+SalesOrder:
+  type: object
+  required: [id, number, customer_id, customer_name, customer_segment, customer_city, warehouse_id, warehouse_code, status, subtotal, discount, total, ordered_at, item_count]
+  properties:
+    id:
+      type: integer
+      format: int64
+    number:
+      type: string
+      examples: ["PV-2026-000001"]
+    customer_id:
+      type: integer
+      format: int64
+    customer_name:
+      type: string
+    customer_segment:
+      type: string
+    customer_city:
+      type: string
+    warehouse_id:
+      type: integer
+      format: int64
+    warehouse_code:
+      type: string
+    status:
+      type: string
+      description: "created, on_hold, picking, packed, shipped, delivered, cancelled"
+    subtotal:
+      $ref: common.yaml#/Money
+    discount:
+      $ref: common.yaml#/Money
+    total:
+      $ref: common.yaml#/Money
+    hold_reason:
+      type: [string, "null"]
+    ordered_at:
+      type: string
+      format: date-time
+    promised_at:
+      type: [string, "null"]
+      format: date-time
+    item_count:
+      type: integer
+    items:
+      type: array
+      items:
+        $ref: "#/SalesOrderItem"
+
+SalesOrderPage:
+  type: object
+  required: [items, total, page, size]
+  properties:
+    items:
+      type: array
+      items:
+        $ref: "#/SalesOrder"
+    total:
+      type: integer
+      format: int64
+    page:
+      type: integer
+    size:
+      type: integer
+
+SalesOrderLine:
+  type: object
+  required: [product_id, quantity]
+  properties:
+    product_id:
+      type: integer
+      format: int64
+    quantity:
+      type: integer
+      minimum: 1
+
+SalesOrderRequest:
+  type: object
+  required: [customer_id, items]
+  properties:
+    customer_id:
+      type: integer
+      format: int64
+    items:
+      type: array
+      minItems: 1
+      items:
+        $ref: "#/SalesOrderLine"

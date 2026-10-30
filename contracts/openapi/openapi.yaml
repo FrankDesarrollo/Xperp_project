@@ -4,7 +4,7 @@
 openapi: 3.1.0
 info:
   title: Xperp API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     API REST del ERP Xperp. Convenciones:
     - Recursos en plural y kebab-case; JSON en snake_case.
@@ -18,13 +18,174 @@ security:
   - bearerAuth: []
 tags:
   - name: auth
-    description: Autenticación y sesión
+    description: Autenticación, sesión, usuarios y empresa
+  - name: catalog
+    description: Categorías y productos
+  - name: inventory
+    description: Bodegas, existencias, kardex, conteos y traslados
+  - name: sales
+    description: Clientes y pedidos de venta
+  - name: purchasing
+    description: Proveedores, ofertas y órdenes de compra
+  - name: logistics
+    description: Tareas de bodega, transportadoras y envíos
+  - name: finance
+    description: Presupuestos y cuentas por pagar
+  - name: ai
+    description: Decisiones, aprobaciones, políticas, ajustes, alertas y pronósticos
+  - name: assistant
+    description: Chat de solo lectura
+  - name: dashboard
+    description: KPIs y series
+  - name: notifications
+    description: Notificaciones del usuario
+  - name: stream
+    description: Eventos en tiempo real (SSE)
+  - name: simulation
+    description: Reloj simulado y guion
+  - name: webhooks
+    description: Respuestas de proveedores y transportadoras simulados
 
 paths:
+  # auth
   /auth/login:
     $ref: paths/auth.yaml#/login
   /auth/me:
     $ref: paths/auth.yaml#/me
+  /users:
+    $ref: paths/auth.yaml#/users
+  /company:
+    $ref: paths/auth.yaml#/company
+  # catalog
+  /categories:
+    $ref: paths/catalog.yaml#/categories
+  /products:
+    $ref: paths/catalog.yaml#/products
+  /products/{id}:
+    $ref: paths/catalog.yaml#/product
+  # inventory
+  /warehouses:
+    $ref: paths/inventory.yaml#/warehouses
+  /inventory:
+    $ref: paths/inventory.yaml#/inventory
+  /inventory/{product_id}/{warehouse_id}:
+    $ref: paths/inventory.yaml#/inventory-item
+  /inventory/{product_id}/{warehouse_id}/movements:
+    $ref: paths/inventory.yaml#/movements
+  /inventory/adjustments:
+    $ref: paths/inventory.yaml#/adjustments
+  /inventory/counts:
+    $ref: paths/inventory.yaml#/counts
+  /stock-transfers:
+    $ref: paths/inventory.yaml#/stock-transfers
+  # sales
+  /customers:
+    $ref: paths/sales.yaml#/customers
+  /sales-orders:
+    $ref: paths/sales.yaml#/sales-orders
+  /sales-orders/{id}:
+    $ref: paths/sales.yaml#/sales-order
+  /sales-orders/{id}/cancel:
+    $ref: paths/sales.yaml#/sales-order-cancel
+  /sales-orders/{id}/release:
+    $ref: paths/sales.yaml#/sales-order-release
+  # purchasing
+  /suppliers:
+    $ref: paths/purchasing.yaml#/suppliers
+  /suppliers/{id}/offers:
+    $ref: paths/purchasing.yaml#/supplier-offers
+  /supplier-offers:
+    $ref: paths/purchasing.yaml#/product-offers
+  /purchase-orders:
+    $ref: paths/purchasing.yaml#/purchase-orders
+  /purchase-orders/{id}:
+    $ref: paths/purchasing.yaml#/purchase-order
+  /purchase-orders/{id}/send:
+    $ref: paths/purchasing.yaml#/purchase-order-send
+  /purchase-orders/{id}/cancel:
+    $ref: paths/purchasing.yaml#/purchase-order-cancel
+  /purchase-orders/{id}/pdf:
+    $ref: paths/purchasing.yaml#/purchase-order-pdf
+  # logistics
+  /warehouse-tasks:
+    $ref: paths/logistics.yaml#/warehouse-tasks
+  /warehouse-tasks/{id}/start:
+    $ref: paths/logistics.yaml#/warehouse-task-start
+  /warehouse-tasks/{id}/complete:
+    $ref: paths/logistics.yaml#/warehouse-task-complete
+  /carriers:
+    $ref: paths/logistics.yaml#/carriers
+  /shipments:
+    $ref: paths/logistics.yaml#/shipments
+  /shipments/{id}/label:
+    $ref: paths/logistics.yaml#/shipment-label
+  # finance
+  /budgets:
+    $ref: paths/finance.yaml#/budgets
+  /accounts-payable:
+    $ref: paths/finance.yaml#/accounts-payable
+  # ai
+  /ai/decisions:
+    $ref: paths/ai.yaml#/decisions
+  /ai/decisions/{id}:
+    $ref: paths/ai.yaml#/decision
+  /ai/decisions/{id}/revert:
+    $ref: paths/ai.yaml#/decision-revert
+  /approvals:
+    $ref: paths/ai.yaml#/approvals
+  /approvals/{id}/approve:
+    $ref: paths/ai.yaml#/approval-approve
+  /approvals/{id}/reject:
+    $ref: paths/ai.yaml#/approval-reject
+  /ai/policies:
+    $ref: paths/ai.yaml#/policies
+  /ai/settings:
+    $ref: paths/ai.yaml#/settings
+  /ai/alerts:
+    $ref: paths/ai.yaml#/alerts
+  /ai/alerts/{id}/read:
+    $ref: paths/ai.yaml#/alert-read
+  /ai/forecasts:
+    $ref: paths/ai.yaml#/forecasts
+  # assistant
+  /assistant/messages:
+    $ref: paths/assistant.yaml#/messages
+  /assistant/conversations/{id}:
+    $ref: paths/assistant.yaml#/conversation
+  # dashboard
+  /dashboard/kpis:
+    $ref: paths/dashboard.yaml#/kpis
+  /dashboard/series:
+    $ref: paths/dashboard.yaml#/series
+  # notifications y stream
+  /notifications:
+    $ref: paths/platform.yaml#/notifications
+  /notifications/{id}/read:
+    $ref: paths/platform.yaml#/notification-read
+  /notifications/read-all:
+    $ref: paths/platform.yaml#/notifications-read-all
+  /stream:
+    $ref: paths/platform.yaml#/stream
+  # simulation
+  /simulation/clock:
+    $ref: paths/platform.yaml#/simulation-clock
+  /simulation/start:
+    $ref: paths/platform.yaml#/simulation-start
+  /simulation/pause:
+    $ref: paths/platform.yaml#/simulation-pause
+  /simulation/speed:
+    $ref: paths/platform.yaml#/simulation-speed
+  /simulation/reset:
+    $ref: paths/platform.yaml#/simulation-reset
+  /simulation/advance:
+    $ref: paths/platform.yaml#/simulation-advance
+  /simulation/scenarios:
+    $ref: paths/platform.yaml#/simulation-scenarios
+  # webhooks
+  /webhooks/suppliers:
+    $ref: paths/platform.yaml#/webhook-suppliers
+  /webhooks/carriers:
+    $ref: paths/platform.yaml#/webhook-carriers
 
 components:
   securitySchemes:
@@ -34,14 +195,17 @@ components:
       bearerFormat: JWT
 
   # Cada esquema se registra aquí para que el generador conserve su nombre.
-  # Los archivos de paths/ referencian siempre ../openapi.yaml#/components/...
   schemas:
+    # common
     Error:
       $ref: schemas/common.yaml#/Error
     PageMeta:
       $ref: schemas/common.yaml#/PageMeta
     Money:
       $ref: schemas/common.yaml#/Money
+    ReasonRequest:
+      $ref: schemas/common.yaml#/ReasonRequest
+    # auth
     Role:
       $ref: schemas/auth.yaml#/Role
     LoginRequest:
@@ -50,6 +214,166 @@ components:
       $ref: schemas/auth.yaml#/LoginResponse
     CurrentUser:
       $ref: schemas/auth.yaml#/CurrentUser
+    UserSummary:
+      $ref: schemas/auth.yaml#/UserSummary
+    Company:
+      $ref: schemas/auth.yaml#/Company
+    # catalog
+    Category:
+      $ref: schemas/catalog.yaml#/Category
+    Product:
+      $ref: schemas/catalog.yaml#/Product
+    ProductPage:
+      $ref: schemas/catalog.yaml#/ProductPage
+    ProductInput:
+      $ref: schemas/catalog.yaml#/ProductInput
+    # inventory
+    Warehouse:
+      $ref: schemas/inventory.yaml#/Warehouse
+    InventoryItem:
+      $ref: schemas/inventory.yaml#/InventoryItem
+    InventoryPage:
+      $ref: schemas/inventory.yaml#/InventoryPage
+    InventoryMovement:
+      $ref: schemas/inventory.yaml#/InventoryMovement
+    InventoryMovementPage:
+      $ref: schemas/inventory.yaml#/InventoryMovementPage
+    InventoryAdjustmentRequest:
+      $ref: schemas/inventory.yaml#/InventoryAdjustmentRequest
+    InventoryCountRequest:
+      $ref: schemas/inventory.yaml#/InventoryCountRequest
+    InventoryCount:
+      $ref: schemas/inventory.yaml#/InventoryCount
+    StockTransferItem:
+      $ref: schemas/inventory.yaml#/StockTransferItem
+    StockTransfer:
+      $ref: schemas/inventory.yaml#/StockTransfer
+    StockTransferPage:
+      $ref: schemas/inventory.yaml#/StockTransferPage
+    StockTransferLine:
+      $ref: schemas/inventory.yaml#/StockTransferLine
+    StockTransferRequest:
+      $ref: schemas/inventory.yaml#/StockTransferRequest
+    # sales
+    Customer:
+      $ref: schemas/sales.yaml#/Customer
+    CustomerPage:
+      $ref: schemas/sales.yaml#/CustomerPage
+    SalesOrderItem:
+      $ref: schemas/sales.yaml#/SalesOrderItem
+    SalesOrder:
+      $ref: schemas/sales.yaml#/SalesOrder
+    SalesOrderPage:
+      $ref: schemas/sales.yaml#/SalesOrderPage
+    SalesOrderLine:
+      $ref: schemas/sales.yaml#/SalesOrderLine
+    SalesOrderRequest:
+      $ref: schemas/sales.yaml#/SalesOrderRequest
+    # purchasing
+    SupplierLeadTime:
+      $ref: schemas/purchasing.yaml#/SupplierLeadTime
+    Supplier:
+      $ref: schemas/purchasing.yaml#/Supplier
+    SupplierOffer:
+      $ref: schemas/purchasing.yaml#/SupplierOffer
+    PurchaseOrderItem:
+      $ref: schemas/purchasing.yaml#/PurchaseOrderItem
+    PurchaseOrderEvent:
+      $ref: schemas/purchasing.yaml#/PurchaseOrderEvent
+    PurchaseOrder:
+      $ref: schemas/purchasing.yaml#/PurchaseOrder
+    PurchaseOrderPage:
+      $ref: schemas/purchasing.yaml#/PurchaseOrderPage
+    PurchaseOrderLine:
+      $ref: schemas/purchasing.yaml#/PurchaseOrderLine
+    PurchaseOrderRequest:
+      $ref: schemas/purchasing.yaml#/PurchaseOrderRequest
+    # logistics
+    TaskLine:
+      $ref: schemas/logistics.yaml#/TaskLine
+    WarehouseTask:
+      $ref: schemas/logistics.yaml#/WarehouseTask
+    WarehouseTaskPage:
+      $ref: schemas/logistics.yaml#/WarehouseTaskPage
+    TaskCompletionLine:
+      $ref: schemas/logistics.yaml#/TaskCompletionLine
+    TaskCompletionRequest:
+      $ref: schemas/logistics.yaml#/TaskCompletionRequest
+    Carrier:
+      $ref: schemas/logistics.yaml#/Carrier
+    Shipment:
+      $ref: schemas/logistics.yaml#/Shipment
+    ShipmentPage:
+      $ref: schemas/logistics.yaml#/ShipmentPage
+    # finance
+    Budget:
+      $ref: schemas/finance.yaml#/Budget
+    AccountPayable:
+      $ref: schemas/finance.yaml#/AccountPayable
+    AccountPayablePage:
+      $ref: schemas/finance.yaml#/AccountPayablePage
+    # ai
+    DecisionReference:
+      $ref: schemas/ai.yaml#/DecisionReference
+    AiDecision:
+      $ref: schemas/ai.yaml#/AiDecision
+    AiDecisionPage:
+      $ref: schemas/ai.yaml#/AiDecisionPage
+    Approval:
+      $ref: schemas/ai.yaml#/Approval
+    ApprovalPage:
+      $ref: schemas/ai.yaml#/ApprovalPage
+    ApprovalDecisionRequest:
+      $ref: schemas/ai.yaml#/ApprovalDecisionRequest
+    AutonomyPolicy:
+      $ref: schemas/ai.yaml#/AutonomyPolicy
+    ScoringWeights:
+      $ref: schemas/ai.yaml#/ScoringWeights
+    AiSettings:
+      $ref: schemas/ai.yaml#/AiSettings
+    Alert:
+      $ref: schemas/ai.yaml#/Alert
+    SeriesPoint:
+      $ref: schemas/ai.yaml#/SeriesPoint
+    ForecastSeries:
+      $ref: schemas/ai.yaml#/ForecastSeries
+    # assistant
+    AssistantMessageRequest:
+      $ref: schemas/assistant.yaml#/AssistantMessageRequest
+    AssistantMessage:
+      $ref: schemas/assistant.yaml#/AssistantMessage
+    AssistantReply:
+      $ref: schemas/assistant.yaml#/AssistantReply
+    AssistantConversation:
+      $ref: schemas/assistant.yaml#/AssistantConversation
+    # dashboard
+    CategoryDays:
+      $ref: schemas/dashboard.yaml#/CategoryDays
+    SupplierFulfillment:
+      $ref: schemas/dashboard.yaml#/SupplierFulfillment
+    DecisionCounts:
+      $ref: schemas/dashboard.yaml#/DecisionCounts
+    Kpis:
+      $ref: schemas/dashboard.yaml#/Kpis
+    Series:
+      $ref: schemas/dashboard.yaml#/Series
+    # notifications, simulation y webhooks
+    Notification:
+      $ref: schemas/platform.yaml#/Notification
+    NotificationPage:
+      $ref: schemas/platform.yaml#/NotificationPage
+    SimulationClock:
+      $ref: schemas/platform.yaml#/SimulationClock
+    SimulationSpeedRequest:
+      $ref: schemas/platform.yaml#/SimulationSpeedRequest
+    Scenario:
+      $ref: schemas/platform.yaml#/Scenario
+    SupplierWebhookItem:
+      $ref: schemas/platform.yaml#/SupplierWebhookItem
+    SupplierWebhook:
+      $ref: schemas/platform.yaml#/SupplierWebhook
+    CarrierWebhook:
+      $ref: schemas/platform.yaml#/CarrierWebhook
 
   responses:
     BadRequest:

@@ -1,0 +1,41 @@
+messages:
+  post:
+    tags: [assistant]
+    operationId: sendAssistantMessage
+    summary: Envía una pregunta al asistente
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/assistant.yaml#/AssistantMessageRequest
+    responses:
+      "200":
+        description: Respuesta del asistente
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/assistant.yaml#/AssistantReply
+      "400":
+        $ref: ../schemas/common.yaml#/responses/BadRequest
+
+conversation:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+  get:
+    tags: [assistant]
+    operationId: getAssistantConversation
+    summary: Mensajes de una conversación
+    responses:
+      "200":
+        description: Conversación
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/assistant.yaml#/AssistantConversation
+      "404":
+        $ref: ../schemas/common.yaml#/responses/NotFound

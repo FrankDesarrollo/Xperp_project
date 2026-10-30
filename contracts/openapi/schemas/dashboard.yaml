@@ -1,0 +1,120 @@
+# Tablero: KPIs y series (AGENTS.md, sección 9.5). Solo lectura.
+
+CategoryDays:
+  type: object
+  required: [category_code, category_name, days]
+  properties:
+    category_code:
+      type: string
+    category_name:
+      type: string
+    days:
+      type: number
+      format: double
+
+SupplierFulfillment:
+  type: object
+  required: [supplier_code, supplier_name, orders, on_time_rate]
+  properties:
+    supplier_code:
+      type: string
+    supplier_name:
+      type: string
+    orders:
+      type: integer
+    on_time_rate:
+      type: number
+      format: double
+
+DecisionCounts:
+  type: object
+  required: [executed, pending_approval, suggested, blocked, approved, rejected]
+  properties:
+    executed:
+      type: integer
+    pending_approval:
+      type: integer
+    suggested:
+      type: integer
+    blocked:
+      type: integer
+    approved:
+      type: integer
+    rejected:
+      type: integer
+
+Kpis:
+  type: object
+  required: [from, to, sales_today, sales_period, orders_today, gross_margin, gross_margin_pct, service_level, lost_sales_units, lost_sales_amount, stockout_skus, low_stock_skus, open_purchase_orders, late_purchase_orders, purchases_period, budget_execution_pct, inventory_value, rotation, decisions, avg_approval_minutes, overcost_assumed, inventory_days_by_category, supplier_fulfillment]
+  properties:
+    from:
+      type: string
+      format: date
+    to:
+      type: string
+      format: date
+    sales_today:
+      $ref: common.yaml#/Money
+    sales_period:
+      $ref: common.yaml#/Money
+    orders_today:
+      type: integer
+    gross_margin:
+      $ref: common.yaml#/Money
+    gross_margin_pct:
+      type: number
+      format: double
+    service_level:
+      type: number
+      format: double
+      description: Unidades despachadas / pedidas, entre 0 y 1
+    lost_sales_units:
+      type: integer
+    lost_sales_amount:
+      $ref: common.yaml#/Money
+    stockout_skus:
+      type: integer
+    low_stock_skus:
+      type: integer
+    open_purchase_orders:
+      type: integer
+    late_purchase_orders:
+      type: integer
+    purchases_period:
+      $ref: common.yaml#/Money
+    budget_execution_pct:
+      type: number
+      format: double
+    inventory_value:
+      $ref: common.yaml#/Money
+    rotation:
+      type: number
+      format: double
+      description: Costo de ventas del periodo / valor del inventario
+    decisions:
+      $ref: "#/DecisionCounts"
+    avg_approval_minutes:
+      type: [number, "null"]
+      format: double
+      description: Minutos simulados entre la solicitud y la resolución
+    overcost_assumed:
+      $ref: common.yaml#/Money
+    inventory_days_by_category:
+      type: array
+      items:
+        $ref: "#/CategoryDays"
+    supplier_fulfillment:
+      type: array
+      items:
+        $ref: "#/SupplierFulfillment"
+
+Series:
+  type: object
+  required: [metric, points]
+  properties:
+    metric:
+      type: string
+    points:
+      type: array
+      items:
+        $ref: ai.yaml#/SeriesPoint

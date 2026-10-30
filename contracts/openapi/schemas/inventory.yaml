@@ -1,0 +1,306 @@
+# Inventario: bodegas, existencias, kardex, conteos y traslados (AGENTS.md, sección 6.3).
+
+Warehouse:
+  type: object
+  required: [id, code, name, city]
+  properties:
+    id:
+      type: integer
+      format: int64
+    code:
+      type: string
+      examples: ["CAL-01"]
+    name:
+      type: string
+    city:
+      type: string
+    address:
+      type: [string, "null"]
+
+InventoryItem:
+  type: object
+  required: [product_id, sku, product_name, category_code, units_per_case, warehouse_id, warehouse_code, on_hand, reserved, available, in_transit, safety_stock, reorder_point, max_stock, cover_days, avg_daily_demand, status, unit_cost, stock_value, promotion_suggested, reorder_blocked]
+  properties:
+    product_id:
+      type: integer
+      format: int64
+    sku:
+      type: string
+    product_name:
+      type: string
+    category_code:
+      type: string
+    units_per_case:
+      type: integer
+    warehouse_id:
+      type: integer
+      format: int64
+    warehouse_code:
+      type: string
+    on_hand:
+      type: integer
+    reserved:
+      type: integer
+    available:
+      type: integer
+      description: on_hand - reserved
+    in_transit:
+      type: integer
+      description: Unidades en OC y traslados abiertos
+    safety_stock:
+      type: integer
+    reorder_point:
+      type: integer
+    max_stock:
+      type: integer
+    cover_days:
+      type: integer
+      description: Cobertura objetivo en días
+    avg_daily_demand:
+      type: number
+      format: double
+    days_of_cover:
+      type: [number, "null"]
+      format: double
+      description: Días que alcanza el disponible con la demanda promedio
+    status:
+      type: string
+      description: "stockout (quiebre), low (bajo), ok (normal), over (exceso)"
+    unit_cost:
+      $ref: common.yaml#/Money
+    stock_value:
+      $ref: common.yaml#/Money
+    promotion_suggested:
+      type: boolean
+    reorder_blocked:
+      type: boolean
+    params_updated_at:
+      type: [string, "null"]
+      format: date-time
+
+InventoryPage:
+  type: object
+  required: [items, total, page, size]
+  properties:
+    items:
+      type: array
+      items:
+        $ref: "#/InventoryItem"
+    total:
+      type: integer
+      format: int64
+    page:
+      type: integer
+    size:
+      type: integer
+
+InventoryMovement:
+  type: object
+  required: [id, type, quantity, balance_after, occurred_at]
+  properties:
+    id:
+      type: integer
+      format: int64
+    type:
+      type: string
+      description: "sale, purchase_receipt, adjustment, transfer_out, transfer_in, return"
+    quantity:
+      type: integer
+      description: Con signo
+    balance_after:
+      type: integer
+    unit_cost:
+      type: [string, "null"]
+      description: Monto como string decimal
+    reference_type:
+      type: [string, "null"]
+    reference_id:
+      type: [integer, "null"]
+      format: int64
+    note:
+      type: [string, "null"]
+    occurred_at:
+      type: string
+      format: date-time
+    created_by:
+      type: [string, "null"]
+
+InventoryMovementPage:
+  type: object
+  required: [items, total, page, size]
+  properties:
+    items:
+      type: array
+      items:
+        $ref: "#/InventoryMovement"
+    total:
+      type: integer
+      format: int64
+    page:
+      type: integer
+    size:
+      type: integer
+
+InventoryAdjustmentRequest:
+  type: object
+  required: [product_id, warehouse_id, quantity, reason]
+  properties:
+    product_id:
+      type: integer
+      format: int64
+    warehouse_id:
+      type: integer
+      format: int64
+    quantity:
+      type: integer
+      description: Unidades con signo (positivo suma, negativo resta)
+    reason:
+      type: string
+      minLength: 3
+      maxLength: 500
+
+InventoryCountRequest:
+  type: object
+  required: [product_id, warehouse_id, counted_qty]
+  properties:
+    product_id:
+      type: integer
+      format: int64
+    warehouse_id:
+      type: integer
+      format: int64
+    counted_qty:
+      type: integer
+      minimum: 0
+
+InventoryCount:
+  type: object
+  required: [id, product_id, sku, warehouse_id, warehouse_code, system_qty, counted_qty, difference, difference_pct, status, counted_at]
+  properties:
+    id:
+      type: integer
+      format: int64
+    product_id:
+      type: integer
+      format: int64
+    sku:
+      type: string
+    warehouse_id:
+      type: integer
+      format: int64
+    warehouse_code:
+      type: string
+    system_qty:
+      type: integer
+    counted_qty:
+      type: integer
+    difference:
+      type: integer
+    difference_pct:
+      type: number
+      format: double
+    status:
+      type: string
+      description: "recorded, discrepancy, adjusted"
+    counted_by:
+      type: [string, "null"]
+    counted_at:
+      type: string
+      format: date-time
+
+StockTransferItem:
+  type: object
+  required: [product_id, sku, product_name, quantity]
+  properties:
+    product_id:
+      type: integer
+      format: int64
+    sku:
+      type: string
+    product_name:
+      type: string
+    quantity:
+      type: integer
+
+StockTransfer:
+  type: object
+  required: [id, number, from_warehouse_id, from_warehouse_code, to_warehouse_id, to_warehouse_code, status, created_at, items]
+  properties:
+    id:
+      type: integer
+      format: int64
+    number:
+      type: string
+      examples: ["TR-2026-000001"]
+    from_warehouse_id:
+      type: integer
+      format: int64
+    from_warehouse_code:
+      type: string
+    to_warehouse_id:
+      type: integer
+      format: int64
+    to_warehouse_code:
+      type: string
+    status:
+      type: string
+      description: "requested, in_transit, received, cancelled"
+    ai_decision_id:
+      type: [integer, "null"]
+      format: int64
+    shipped_at:
+      type: [string, "null"]
+      format: date-time
+    received_at:
+      type: [string, "null"]
+      format: date-time
+    created_at:
+      type: string
+      format: date-time
+    items:
+      type: array
+      items:
+        $ref: "#/StockTransferItem"
+
+StockTransferPage:
+  type: object
+  required: [items, total, page, size]
+  properties:
+    items:
+      type: array
+      items:
+        $ref: "#/StockTransfer"
+    total:
+      type: integer
+      format: int64
+    page:
+      type: integer
+    size:
+      type: integer
+
+StockTransferLine:
+  type: object
+  required: [product_id, quantity]
+  properties:
+    product_id:
+      type: integer
+      format: int64
+    quantity:
+      type: integer
+      minimum: 1
+
+StockTransferRequest:
+  type: object
+  required: [from_warehouse_id, to_warehouse_id, items]
+  properties:
+    from_warehouse_id:
+      type: integer
+      format: int64
+    to_warehouse_id:
+      type: integer
+      format: int64
+    items:
+      type: array
+      minItems: 1
+      items:
+        $ref: "#/StockTransferLine"

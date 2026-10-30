@@ -1,0 +1,6 @@
+code,name,share,discount_pct,lines_min,lines_max,qty_min,qty_max,qty_unit
+tienda,Tienda de barrio,0.50,0,4,10,2,12,units
+minimercado,Minimercado,0.25,3,8,15,6,36,units
+supermercado,Supermercado regional,0.10,7,15,30,24,120,units
+mayorista,Mayorista,0.05,10,10,25,1,5,cases
+en_linea,Tienda en línea,0.10,0,1,6,1,4,units

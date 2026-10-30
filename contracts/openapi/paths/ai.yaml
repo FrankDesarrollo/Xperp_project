@@ -1,0 +1,327 @@
+decisions:
+  get:
+    tags: [ai]
+    operationId: listDecisions
+    summary: Bitácora de decisiones de la IA
+    parameters:
+      - name: decision_type
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: exclude_type
+        in: query
+        required: false
+        description: Oculta un tipo de decisión (por ejemplo, fulfillment, que es muy frecuente)
+        schema:
+          type: string
+      - name: reference_type
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: reference_id
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      - $ref: ../schemas/common.yaml#/parameters/Page
+      - $ref: ../schemas/common.yaml#/parameters/Size
+    responses:
+      "200":
+        description: Página de decisiones, de la más reciente a la más antigua
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/ai.yaml#/AiDecisionPage
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+
+decision:
+  parameters:
+    - $ref: ../schemas/common.yaml#/parameters/Id
+  get:
+    tags: [ai]
+    operationId: getDecision
+    summary: Detalle de una decisión
+    responses:
+      "200":
+        description: Decisión
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/ai.yaml#/AiDecision
+      "404":
+        $ref: ../schemas/common.yaml#/responses/NotFound
+
+decision-revert:
+  parameters:
+    - $ref: ../schemas/common.yaml#/parameters/Id
+  post:
+    tags: [ai]
+    operationId: revertDecision
+    summary: Revierte una decisión ejecutada, si todavía es reversible
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/common.yaml#/ReasonRequest
+    responses:
+      "200":
+        description: Decisión revertida
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/ai.yaml#/AiDecision
+      "403":
+        $ref: ../schemas/common.yaml#/responses/Forbidden
+      "404":
+        $ref: ../schemas/common.yaml#/responses/NotFound
+      "409":
+        $ref: ../schemas/common.yaml#/responses/Conflict
+
+approvals:
+  get:
+    tags: [ai]
+    operationId: listApprovals
+    summary: Bandeja de aprobaciones
+    parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: mine
+        in: query
+        required: false
+        description: Solo las que puede decidir el rol de la sesión
+        schema:
+          type: boolean
+      - $ref: ../schemas/common.yaml#/parameters/Page
+      - $ref: ../schemas/common.yaml#/parameters/Size
+    responses:
+      "200":
+        description: Página de aprobaciones
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/ai.yaml#/ApprovalPage
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+
+approval-approve:
+  parameters:
+    - $ref: ../schemas/common.yaml#/parameters/Id
+  post:
+    tags: [ai]
+    operationId: approveApproval
+    summary: Aprueba y ejecuta la acción propuesta
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/ai.yaml#/ApprovalDecisionRequest
+    responses:
+      "200":
+        description: Aprobación resuelta
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/ai.yaml#/Approval
+      "403":
+        $ref: ../schemas/common.yaml#/responses/Forbidden
+      "404":
+        $ref: ../schemas/common.yaml#/responses/NotFound
+      "409":
+        $ref: ../schemas/common.yaml#/responses/Conflict
+
+approval-reject:
+  parameters:
+    - $ref: ../schemas/common.yaml#/parameters/Id
+  post:
+    tags: [ai]
+    operationId: rejectApproval
+    summary: Rechaza la acción propuesta
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/ai.yaml#/ApprovalDecisionRequest
+    responses:
+      "200":
+        description: Aprobación resuelta
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/ai.yaml#/Approval
+      "403":
+        $ref: ../schemas/common.yaml#/responses/Forbidden
+      "404":
+        $ref: ../schemas/common.yaml#/responses/NotFound
+      "409":
+        $ref: ../schemas/common.yaml#/responses/Conflict
+
+policies:
+  get:
+    tags: [ai]
+    operationId: listPolicies
+    summary: Políticas de autonomía
+    responses:
+      "200":
+        description: Políticas
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: ../schemas/ai.yaml#/AutonomyPolicy
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+  put:
+    tags: [ai]
+    operationId: updatePolicies
+    summary: Reemplaza la configuración de las políticas indicadas
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: ../schemas/ai.yaml#/AutonomyPolicy
+    responses:
+      "200":
+        description: Políticas actualizadas
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: ../schemas/ai.yaml#/AutonomyPolicy
+      "400":
+        $ref: ../schemas/common.yaml#/responses/BadRequest
+      "403":
+        $ref: ../schemas/common.yaml#/responses/Forbidden
+
+settings:
+  get:
+    tags: [ai]
+    operationId: getAiSettings
+    summary: Ajustes de la IA (kill switch, modo sombra, topes y pesos)
+    responses:
+      "200":
+        description: Ajustes
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/ai.yaml#/AiSettings
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+  put:
+    tags: [ai]
+    operationId: updateAiSettings
+    summary: Actualiza los ajustes de la IA
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/ai.yaml#/AiSettings
+    responses:
+      "200":
+        description: Ajustes actualizados
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/ai.yaml#/AiSettings
+      "400":
+        $ref: ../schemas/common.yaml#/responses/BadRequest
+      "403":
+        $ref: ../schemas/common.yaml#/responses/Forbidden
+
+alerts:
+  get:
+    tags: [ai]
+    operationId: listAlerts
+    summary: Alertas recientes
+    parameters:
+      - name: unread
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 50
+          maximum: 200
+    responses:
+      "200":
+        description: Alertas, de la más reciente a la más antigua
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: ../schemas/ai.yaml#/Alert
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+
+alert-read:
+  parameters:
+    - $ref: ../schemas/common.yaml#/parameters/Id
+  post:
+    tags: [ai]
+    operationId: markAlertRead
+    summary: Marca una alerta como leída
+    responses:
+      "204":
+        description: Marcada
+      "404":
+        $ref: ../schemas/common.yaml#/responses/NotFound
+
+forecasts:
+  get:
+    tags: [ai]
+    operationId: getForecast
+    summary: Demanda histórica y pronóstico de un SKU en una bodega
+    parameters:
+      - name: product_id
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: warehouse_id
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: history_days
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 45
+          maximum: 120
+    responses:
+      "200":
+        description: Serie
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/ai.yaml#/ForecastSeries
+      "400":
+        $ref: ../schemas/common.yaml#/responses/BadRequest

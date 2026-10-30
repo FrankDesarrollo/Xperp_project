@@ -1,0 +1,65 @@
+kpis:
+  get:
+    tags: [dashboard]
+    operationId: getKpis
+    summary: KPIs del tablero
+    parameters:
+      - name: from
+        in: query
+        required: false
+        description: Por defecto, el primer día del mes simulado
+        schema:
+          type: string
+          format: date
+      - name: to
+        in: query
+        required: false
+        description: Por defecto, el día simulado actual
+        schema:
+          type: string
+          format: date
+      - $ref: ../schemas/common.yaml#/parameters/WarehouseIdQuery
+    responses:
+      "200":
+        description: KPIs
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/dashboard.yaml#/Kpis
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+
+series:
+  get:
+    tags: [dashboard]
+    operationId: getSeries
+    summary: Serie diaria de una métrica
+    parameters:
+      - name: metric
+        in: query
+        required: true
+        description: "sales, orders, service_level, lost_sales, purchases"
+        schema:
+          type: string
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - $ref: ../schemas/common.yaml#/parameters/WarehouseIdQuery
+    responses:
+      "200":
+        description: Serie
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/dashboard.yaml#/Series
+      "400":
+        $ref: ../schemas/common.yaml#/responses/BadRequest

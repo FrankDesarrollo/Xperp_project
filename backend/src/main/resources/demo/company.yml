@@ -1,0 +1,42 @@
+# Empresa demo (AGENTS.md, secciones 2.1 a 2.4 y 2.12). Todos los nombres son ficticios.
+company:
+  name: Distribuidora La Ceiba S.A.S.
+  nit: 999999999-1
+  city: Cali
+  timezone: America/Bogota
+  currency: COP
+
+warehouses:
+  - code: CAL-01
+    name: Bodega principal Acopi
+    city: Yumbo
+    address: Zona industrial Acopi, Yumbo
+    demand_factor: 1.0
+  - code: BOG-01
+    name: Bodega satélite Bogotá
+    city: Bogotá
+    address: Zona franca de Fontibón, Bogotá
+    demand_factor: 0.4
+
+# Contraseña de todos los usuarios demo
+password: Xperp2026*
+
+users:
+  - { email: admin@laceiba.demo, name: Administrador Demo, role: admin }
+  - { email: gerencia@laceiba.demo, name: Laura Méndez, role: manager }
+  - { email: compras@laceiba.demo, name: Andrés Rojas, role: purchasing }
+  - { email: bodega.cali@laceiba.demo, name: Jhon Caicedo, role: warehouse, warehouse: CAL-01 }
+  - { email: bodega.bogota@laceiba.demo, name: Diana Pardo, role: warehouse, warehouse: BOG-01 }
+  - { email: analista@laceiba.demo, name: Camila Torres, role: viewer }
+
+# Presupuesto mensual de compras por categoría (COP). Se carga para noviembre y diciembre.
+budget_periods: ["2026-11", "2026-12"]
+budgets:
+  ABA: 260000000
+  BEB: 90000000
+  ASE: 130000000
+  CPE: 70000000
+  SNK: 50000000
+
+# Tope diario de compras que puede ejecutar la IA (COP)
+ai_daily_spend_cap: 40000000

@@ -1,0 +1,143 @@
+warehouse-tasks:
+  get:
+    tags: [logistics]
+    operationId: listWarehouseTasks
+    summary: Tareas de bodega
+    parameters:
+      - name: assigned_to
+        in: query
+        required: false
+        description: '"me" para las tareas del usuario de la sesión'
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        description: Un estado o "open" para pendientes y en curso
+        schema:
+          type: string
+      - name: type
+        in: query
+        required: false
+        schema:
+          type: string
+      - $ref: ../schemas/common.yaml#/parameters/WarehouseIdQuery
+      - $ref: ../schemas/common.yaml#/parameters/Page
+      - $ref: ../schemas/common.yaml#/parameters/Size
+    responses:
+      "200":
+        description: Página de tareas
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/logistics.yaml#/WarehouseTaskPage
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+
+warehouse-task-start:
+  parameters:
+    - $ref: ../schemas/common.yaml#/parameters/Id
+  post:
+    tags: [logistics]
+    operationId: startWarehouseTask
+    summary: Inicia una tarea
+    responses:
+      "200":
+        description: Tarea en curso
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/logistics.yaml#/WarehouseTask
+      "404":
+        $ref: ../schemas/common.yaml#/responses/NotFound
+      "409":
+        $ref: ../schemas/common.yaml#/responses/Conflict
+
+warehouse-task-complete:
+  parameters:
+    - $ref: ../schemas/common.yaml#/parameters/Id
+  post:
+    tags: [logistics]
+    operationId: completeWarehouseTask
+    summary: Termina una tarea
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/logistics.yaml#/TaskCompletionRequest
+    responses:
+      "200":
+        description: Tarea terminada
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/logistics.yaml#/WarehouseTask
+      "404":
+        $ref: ../schemas/common.yaml#/responses/NotFound
+      "409":
+        $ref: ../schemas/common.yaml#/responses/Conflict
+
+carriers:
+  get:
+    tags: [logistics]
+    operationId: listCarriers
+    summary: Transportadoras
+    responses:
+      "200":
+        description: Transportadoras
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: ../schemas/logistics.yaml#/Carrier
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+
+shipments:
+  get:
+    tags: [logistics]
+    operationId: listShipments
+    summary: Envíos
+    parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: carrier_id
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      - $ref: ../schemas/common.yaml#/parameters/Page
+      - $ref: ../schemas/common.yaml#/parameters/Size
+    responses:
+      "200":
+        description: Página de envíos
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/logistics.yaml#/ShipmentPage
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+
+shipment-label:
+  parameters:
+    - $ref: ../schemas/common.yaml#/parameters/Id
+  get:
+    tags: [logistics]
+    operationId: getShipmentLabel
+    summary: Guía de despacho en PDF
+    responses:
+      "200":
+        description: PDF
+        content:
+          application/pdf:
+            schema:
+              type: string
+              format: binary
+      "404":
+        $ref: ../schemas/common.yaml#/responses/NotFound

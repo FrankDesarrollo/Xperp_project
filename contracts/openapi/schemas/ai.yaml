@@ -1,0 +1,309 @@
+# IA y control: decisiones, aprobaciones, políticas, ajustes, alertas y pronósticos (AGENTS.md, 6.8 y 8).
+
+DecisionReference:
+  type: object
+  required: [type, id, label]
+  properties:
+    type:
+      type: string
+      description: "purchase_order, sales_order, stock_transfer, warehouse_task, shipment, inventory, product"
+    id:
+      type: integer
+      format: int64
+    label:
+      type: string
+
+AiDecision:
+  type: object
+  required: [id, decision_type, trigger_event, input_snapshot, alternatives, proposed_action, reasoning, confidence, policy_result, status, llm_used, sim_time, created_at, reversible, references]
+  properties:
+    id:
+      type: integer
+      format: int64
+    decision_type:
+      type: string
+      description: "replenishment, po_exception, stock_transfer, fulfillment, carrier_selection, demand_anomaly, price_anomaly, inventory_discrepancy, slow_mover, budget_prioritization, reorder_params_update, daily_summary"
+    action_type:
+      type: [string, "null"]
+    title:
+      type: [string, "null"]
+    trigger_event:
+      type: string
+    trigger_ref:
+      type: [string, "null"]
+    input_snapshot:
+      type: object
+      additionalProperties: true
+    alternatives:
+      type: array
+      items:
+        type: object
+        additionalProperties: true
+    proposed_action:
+      type: object
+      additionalProperties: true
+    reasoning:
+      type: string
+    confidence:
+      type: number
+      format: double
+    amount:
+      type: [string, "null"]
+      description: Monto de la acción, si aplica (string decimal)
+    policy_result:
+      type: string
+      description: "executed, pending_approval, suggested, blocked"
+    policy_reason:
+      type: [string, "null"]
+    autonomy_level:
+      type: [integer, "null"]
+    status:
+      type: string
+      description: "executed, pending_approval, approved, rejected, expired, suggested, blocked, reverted, failed"
+    result_message:
+      type: [string, "null"]
+    approved_by:
+      type: [integer, "null"]
+      format: int64
+    approved_by_name:
+      type: [string, "null"]
+    approval_id:
+      type: [integer, "null"]
+      format: int64
+    executed_at:
+      type: [string, "null"]
+      format: date-time
+    reverted_at:
+      type: [string, "null"]
+      format: date-time
+    reversible:
+      type: boolean
+    llm_used:
+      type: boolean
+    llm_model:
+      type: [string, "null"]
+    prompt_version:
+      type: [string, "null"]
+    tokens_in:
+      type: [integer, "null"]
+    tokens_out:
+      type: [integer, "null"]
+    latency_ms:
+      type: [integer, "null"]
+    sim_time:
+      type: string
+      format: date-time
+    created_at:
+      type: string
+      format: date-time
+    references:
+      type: array
+      items:
+        $ref: "#/DecisionReference"
+
+AiDecisionPage:
+  type: object
+  required: [items, total, page, size]
+  properties:
+    items:
+      type: array
+      items:
+        $ref: "#/AiDecision"
+    total:
+      type: integer
+      format: int64
+    page:
+      type: integer
+    size:
+      type: integer
+
+Approval:
+  type: object
+  required: [id, ai_decision_id, requested_role, status, created_at, expires_at, decision]
+  properties:
+    id:
+      type: integer
+      format: int64
+    ai_decision_id:
+      type: integer
+      format: int64
+    requested_role:
+      type: string
+    status:
+      type: string
+      description: "pending, approved, rejected, expired"
+    decided_by:
+      type: [integer, "null"]
+      format: int64
+    decided_by_name:
+      type: [string, "null"]
+    decided_at:
+      type: [string, "null"]
+      format: date-time
+    comment:
+      type: [string, "null"]
+    created_at:
+      type: string
+      format: date-time
+    expires_at:
+      type: string
+      format: date-time
+    decision:
+      $ref: "#/AiDecision"
+
+ApprovalPage:
+  type: object
+  required: [items, total, page, size]
+  properties:
+    items:
+      type: array
+      items:
+        $ref: "#/Approval"
+    total:
+      type: integer
+      format: int64
+    page:
+      type: integer
+    size:
+      type: integer
+
+ApprovalDecisionRequest:
+  type: object
+  properties:
+    comment:
+      type: string
+      maxLength: 500
+
+AutonomyPolicy:
+  type: object
+  required: [id, action_type, level, is_enabled]
+  properties:
+    id:
+      type: integer
+      format: int64
+    action_type:
+      type: string
+    description:
+      type: [string, "null"]
+    level:
+      type: integer
+      minimum: 0
+      maximum: 3
+    min_amount:
+      type: [string, "null"]
+      description: Monto como string decimal
+    max_amount:
+      type: [string, "null"]
+      description: Monto como string decimal
+    approver_role:
+      type: [string, "null"]
+    conditions:
+      type: object
+      additionalProperties: true
+    is_enabled:
+      type: boolean
+
+ScoringWeights:
+  type: object
+  required: [price, lead_time, fulfillment, preferred]
+  properties:
+    price:
+      type: number
+      format: double
+    lead_time:
+      type: number
+      format: double
+    fulfillment:
+      type: number
+      format: double
+    preferred:
+      type: number
+      format: double
+
+AiSettings:
+  type: object
+  required: [kill_switch, shadow_mode, ai_daily_spend_cap, llm_max_calls_per_day, scoring_weights]
+  properties:
+    kill_switch:
+      type: boolean
+    shadow_mode:
+      type: boolean
+    ai_daily_spend_cap:
+      $ref: common.yaml#/Money
+    llm_max_calls_per_day:
+      type: integer
+      minimum: 0
+    scoring_weights:
+      $ref: "#/ScoringWeights"
+    llm_provider:
+      type: [string, "null"]
+      description: Solo lectura; sale de LLM_PROVIDER
+    llm_model:
+      type: [string, "null"]
+    llm_calls_today:
+      type: [integer, "null"]
+    ai_spend_today:
+      type: [string, "null"]
+
+Alert:
+  type: object
+  required: [id, type, severity, message, is_read, created_at]
+  properties:
+    id:
+      type: integer
+      format: int64
+    type:
+      type: string
+    severity:
+      type: string
+      description: "info, warning, critical"
+    message:
+      type: string
+    entity_type:
+      type: [string, "null"]
+    entity_id:
+      type: [integer, "null"]
+      format: int64
+    ai_decision_id:
+      type: [integer, "null"]
+      format: int64
+    is_read:
+      type: boolean
+    created_at:
+      type: string
+      format: date-time
+
+SeriesPoint:
+  type: object
+  required: [date, value]
+  properties:
+    date:
+      type: string
+      format: date
+    value:
+      type: number
+      format: double
+
+ForecastSeries:
+  type: object
+  required: [product_id, warehouse_id, model, history, forecast]
+  properties:
+    product_id:
+      type: integer
+      format: int64
+    warehouse_id:
+      type: integer
+      format: int64
+    model:
+      type: string
+    generated_at:
+      type: [string, "null"]
+      format: date-time
+    history:
+      type: array
+      items:
+        $ref: "#/SeriesPoint"
+    forecast:
+      type: array
+      items:
+        $ref: "#/SeriesPoint"

@@ -1,0 +1,215 @@
+warehouses:
+  get:
+    tags: [inventory]
+    operationId: listWarehouses
+    summary: Bodegas de la empresa
+    responses:
+      "200":
+        description: Bodegas
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: ../schemas/inventory.yaml#/Warehouse
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+
+inventory:
+  get:
+    tags: [inventory]
+    operationId: listInventory
+    summary: Existencias por SKU y bodega, con semáforo
+    parameters:
+      - $ref: ../schemas/common.yaml#/parameters/WarehouseIdQuery
+      - name: status
+        in: query
+        required: false
+        description: "stockout, low (incluye quiebres), ok u over"
+        schema:
+          type: string
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: category_code
+        in: query
+        required: false
+        schema:
+          type: string
+      - $ref: ../schemas/common.yaml#/parameters/Page
+      - $ref: ../schemas/common.yaml#/parameters/Size
+    responses:
+      "200":
+        description: Página de existencias
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/inventory.yaml#/InventoryPage
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+
+inventory-item:
+  parameters:
+    - name: product_id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    - name: warehouse_id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+  get:
+    tags: [inventory]
+    operationId: getInventoryItem
+    summary: Existencia de un SKU en una bodega
+    responses:
+      "200":
+        description: Existencia
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/inventory.yaml#/InventoryItem
+      "404":
+        $ref: ../schemas/common.yaml#/responses/NotFound
+
+movements:
+  parameters:
+    - name: product_id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    - name: warehouse_id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+  get:
+    tags: [inventory]
+    operationId: listMovements
+    summary: Kardex de un SKU en una bodega
+    parameters:
+      - $ref: ../schemas/common.yaml#/parameters/Page
+      - $ref: ../schemas/common.yaml#/parameters/Size
+    responses:
+      "200":
+        description: Movimientos, del más reciente al más antiguo
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/inventory.yaml#/InventoryMovementPage
+      "404":
+        $ref: ../schemas/common.yaml#/responses/NotFound
+
+adjustments:
+  post:
+    tags: [inventory]
+    operationId: createAdjustment
+    summary: Registra un ajuste manual de inventario
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/inventory.yaml#/InventoryAdjustmentRequest
+    responses:
+      "201":
+        description: Ajuste registrado
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/inventory.yaml#/InventoryMovement
+      "400":
+        $ref: ../schemas/common.yaml#/responses/BadRequest
+      "403":
+        $ref: ../schemas/common.yaml#/responses/Forbidden
+
+counts:
+  get:
+    tags: [inventory]
+    operationId: listCounts
+    summary: Conteos físicos recientes
+    parameters:
+      - $ref: ../schemas/common.yaml#/parameters/WarehouseIdQuery
+    responses:
+      "200":
+        description: Conteos
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: ../schemas/inventory.yaml#/InventoryCount
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+  post:
+    tags: [inventory]
+    operationId: createCount
+    summary: Registra un conteo físico
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/inventory.yaml#/InventoryCountRequest
+    responses:
+      "201":
+        description: Conteo registrado
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/inventory.yaml#/InventoryCount
+      "400":
+        $ref: ../schemas/common.yaml#/responses/BadRequest
+
+stock-transfers:
+  get:
+    tags: [inventory]
+    operationId: listStockTransfers
+    summary: Traslados entre bodegas
+    parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - $ref: ../schemas/common.yaml#/parameters/Page
+      - $ref: ../schemas/common.yaml#/parameters/Size
+    responses:
+      "200":
+        description: Página de traslados
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/inventory.yaml#/StockTransferPage
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+  post:
+    tags: [inventory]
+    operationId: createStockTransfer
+    summary: Crea un traslado entre bodegas
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/inventory.yaml#/StockTransferRequest
+    responses:
+      "201":
+        description: Traslado creado
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/inventory.yaml#/StockTransfer
+      "400":
+        $ref: ../schemas/common.yaml#/responses/BadRequest
+      "409":
+        $ref: ../schemas/common.yaml#/responses/Conflict
