@@ -822,11 +822,11 @@ Las tools de lectura devuelven datos. Las de escritura no ejecutan nada por su c
 
 ### 8.9 Asistente
 
-Responde preguntas como "¿qué se agota esta semana?", "¿qué me recomiendas reponer?", "¿hay exceso de inventario?", "¿por qué se le compró a Mayorista Central?" o "¿cuánto llevamos gastado en aseo?". Solo usa tools de lectura y nunca genera SQL.
+Responde preguntas como "¿qué se agota esta semana?", "¿qué me recomiendas reponer?", "¿hay exceso de inventario?", "¿por qué se le compró a Mayorista Central?" o "¿cuánto llevamos gastado en aseo?". Solo usa tools de lectura y nunca genera SQL. Se abre desde cualquier pantalla con el botón «Preguntar a la IA», y la conversación es la misma que en la pantalla Asistente.
 
 ### 8.10 Recomendaciones de inventario
 
-`GET /ai/recommendations` dice qué haría hoy el ciclo de reabastecimiento con cada existencia que necesita atención, y por qué: comprar (al proveedor con mejor puntaje y en la cantidad de `ReorderRules`), trasladar (si es urgente y otra bodega tiene más de 30 días), esperar la OC en camino, revisar una propuesta que espera aprobación, o no reponer por exceso. Usa las mismas reglas que el agente (`StockAdvice`, `ReorderRules`, `SupplierScorer`, el pronóstico y el plan de traslado), no ejecuta nada, no escribe en `ai_decisions` y no llama al LLM. No anticipa la consolidación por proveedor ni la priorización por presupuesto, que dependen del plan completo del día.
+`GET /ai/recommendations` dice qué haría hoy el ciclo de reabastecimiento con cada existencia que necesita atención, y por qué: comprar (al proveedor con mejor puntaje y en la cantidad de `ReorderRules`), trasladar (si es urgente y otra bodega tiene más de 30 días), esperar la OC en camino, revisar una propuesta que espera aprobación, o no reponer por exceso. Usa las mismas reglas que el agente (`StockAdvice`, `ReorderRules`, `SupplierScorer`, el pronóstico y el plan de traslado), no ejecuta nada, no escribe en `ai_decisions` y no llama al LLM. No anticipa la consolidación por proveedor ni la priorización por presupuesto, que dependen del plan completo del día. Se ven en Inventario → Recomendaciones de la IA, en el detalle de cada existencia y, las urgentes, en el Tablero.
 
 ---
 
@@ -905,8 +905,8 @@ Ventas del día y del mes, margen bruto, nivel de servicio (unidades despachadas
 
 | Pantalla | Contenido | Roles |
 |---|---|---|
-| Tablero | KPIs, ventas en vivo, inventario por estado, últimas decisiones de la IA, alertas | todos |
-| Inventario | Lista con semáforo (quiebre, bajo, normal, exceso), filtros, detalle con kardex y pronóstico | todos |
+| Tablero | KPIs, recomendaciones urgentes de la IA, ventas en vivo, inventario por estado, últimas decisiones de la IA, alertas | todos |
+| Inventario | Lista con semáforo (quiebre, bajo, normal, exceso), filtros, recomendaciones de la IA, detalle con recomendación, kardex y pronóstico | todos |
 | Ventas | Pedidos, estados, pedidos retenidos para revisión | manager, admin, viewer |
 | Compras | OC por estado, línea de tiempo de cada OC, proveedores, ofertas y precios | purchasing, manager, admin |
 | Bodega | Tareas asignadas al usuario, botones grandes de iniciar y terminar, pensada para celular | warehouse |
@@ -914,7 +914,7 @@ Ventas del día y del mes, margen bruto, nivel de servicio (unidades despachadas
 | IA → Decisiones | Bitácora con datos de entrada, alternativas, razonamiento, resultado de la política y reversión | todos (revertir: manager, admin) |
 | IA → Aprobaciones | Bandeja por rol con el razonamiento de la IA y botones de aprobar o rechazar con comentario | purchasing, manager |
 | IA → Políticas | Niveles por acción, umbrales, presupuestos, pesos del puntaje, kill switch, modo sombra | admin |
-| Asistente | Chat de solo lectura | todos |
+| Asistente | Chat de solo lectura; también se abre como panel desde cualquier pantalla | todos |
 | Simulación | Reloj, iniciar, pausar, velocidad, reiniciar, progreso del guion | admin |
 
 ### 11.2 Diseño
@@ -925,6 +925,8 @@ Ventas del día y del mes, margen bruto, nivel de servicio (unidades despachadas
 - La barra superior muestra siempre la fecha y hora simuladas y si la IA está activa, en modo sombra o detenida.
 - Cada decisión de la IA se muestra con la misma tarjeta en todas las pantallas (`DecisionCard`).
 - Montos en formato `$ 1.250.000`; fechas en `dd/mm/aaaa hh:mm`.
+- Cada vista con datos tiene sus estados: cargando, vacía (con qué hacer), con error (con «Reintentar») y con datos (`Loader` y `LoadState`). Una recarga que falla no borra lo que ya se ve.
+- Una sección que el rol no puede ver muestra «sin acceso» en vez de una pantalla rota.
 
 ---
 
