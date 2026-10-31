@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import LoadState from '$lib/components/ui/LoadState.svelte';
+	import { Loader } from '$lib/utils/loader.svelte';
 	import { FileText } from '@lucide/svelte';
 	import { api, unwrap, openPdf } from '$lib/api/client';
 	import type { Carrier, Shipment } from '$lib/api/types';
@@ -20,7 +22,20 @@
 	let status = $state('');
 	let carrierId = $state('');
 
-	async function load() {
+	const loader = new Loader();
+
+	/** Toda carga pasa por el Loader: cargando, error con salida o datos. */
+	function load() {
+		return loader.run(fetchShipments);
+	}
+
+	/** Primera carga y «Reintentar»: también las transportadoras del filtro, por si fueron ellas las que fallaron. */
+	async function fetchAll() {
+		carriers = await unwrap(api.GET('/carriers'));
+		await fetchShipments();
+	}
+
+	async function fetchShipments() {
 		const res = await unwrap(
 			api.GET('/shipments', {
 				params: {
@@ -38,10 +53,7 @@
 	}
 
 	onMount(() => {
-		void (async () => {
-			carriers = await unwrap(api.GET('/carriers'));
-			await load();
-		})();
+		void loader.run(fetchAll);
 		let timer: ReturnType<typeof setTimeout> | null = null;
 		const off = live.on('shipment.changed', () => {
 			if (timer || pageNo !== 1) return;
@@ -102,51 +114,53 @@
 	</Field>
 </div>
 
-<div class="table-wrap">
-	<table class="data">
-		<thead>
-			<tr
-				><th>Guía</th><th>Pedido</th><th>Cliente</th><th>Ruta</th><th>Transportadora</th><th
-					>Estado</th
-				><th class="num">Peso</th><th class="num">Flete</th><th>Entrega estimada</th><th></th></tr
-			>
-		</thead>
-		<tbody>
-			{#each shipments as s (s.id)}
-				<tr>
-					<td class="mono">{s.tracking_number}</td>
-					<td class="mono">{s.sales_order_number}</td>
-					<td>{s.customer_name ?? '—'}</td>
-					<td>{s.origin_city} → {s.destination_city}</td>
-					<td>{s.carrier_name} <span class="text-muted small">{s.service}</span></td>
-					<td><StatusBadge map={SHIPMENT_STATUS} value={s.status} /></td>
-					<td class="num">{formatNumber(s.weight_kg, 1)} kg</td>
-					<td class="num">{formatCop(s.cost)}</td>
-					<td
-						>{s.delivered_at
-							? `Entregado ${formatDateTime(s.delivered_at)}`
-							: formatDateTime(s.eta)}</td
-					>
-					<td>
-						<button
-							class="link"
-							onclick={() =>
-								openPdf(`/shipments/${s.id}/label`).catch(() =>
-									toasts.error('No se pudo abrir la guía')
-								)}
-							aria-label="Guía en PDF"
+<LoadState {loader} what="los envíos" onretry={() => loader.run(fetchAll)}>
+	<div class="table-wrap">
+		<table class="data">
+			<thead>
+				<tr
+					><th>Guía</th><th>Pedido</th><th>Cliente</th><th>Ruta</th><th>Transportadora</th><th
+						>Estado</th
+					><th class="num">Peso</th><th class="num">Flete</th><th>Entrega estimada</th><th></th></tr
+				>
+			</thead>
+			<tbody>
+				{#each shipments as s (s.id)}
+					<tr>
+						<td class="mono">{s.tracking_number}</td>
+						<td class="mono">{s.sales_order_number}</td>
+						<td>{s.customer_name ?? '—'}</td>
+						<td>{s.origin_city} → {s.destination_city}</td>
+						<td>{s.carrier_name} <span class="text-muted small">{s.service}</span></td>
+						<td><StatusBadge map={SHIPMENT_STATUS} value={s.status} /></td>
+						<td class="num">{formatNumber(s.weight_kg, 1)} kg</td>
+						<td class="num">{formatCop(s.cost)}</td>
+						<td
+							>{s.delivered_at
+								? `Entregado ${formatDateTime(s.delivered_at)}`
+								: formatDateTime(s.eta)}</td
 						>
-							<FileText size={16} />
-						</button>
-					</td>
-				</tr>
-			{:else}
-				<tr><td colspan="10" class="text-muted">Todavía no hay envíos.</td></tr>
-			{/each}
-		</tbody>
-	</table>
-</div>
-<Pagination page={pageNo} size={SIZE} {total} onchange={(p) => ((pageNo = p), load())} />
+						<td>
+							<button
+								class="link"
+								onclick={() =>
+									openPdf(`/shipments/${s.id}/label`).catch(() =>
+										toasts.error('No se pudo abrir la guía')
+									)}
+								aria-label="Guía en PDF"
+							>
+								<FileText size={16} />
+							</button>
+						</td>
+					</tr>
+				{:else}
+					<tr><td colspan="10" class="text-muted">Todavía no hay envíos.</td></tr>
+				{/each}
+			</tbody>
+		</table>
+	</div>
+	<Pagination page={pageNo} size={SIZE} {total} onchange={(p) => ((pageNo = p), load())} />
+</LoadState>
 
 <style>
 	.carriers {

@@ -1,0 +1,756 @@
+<title>Xperp en vivo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@800&family=Instrument+Serif:ital@1&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Plano técnico EAx (registro «técnico»): hoja oscura con retícula 60/300 y grano; ámbar neón para lo marcado,
+   cian para el contraste. Escenario 16:9 que escala con su contenedor; en celular, cada diapositiva se desplaza. */
+:root {
+	color-scheme: dark;
+	--plano: #0f172a;
+	--plano-2: #1e293b;
+	--tinta: #f8fafc;
+	--tinta-2: #cbd5e1;
+	--ambar: #f59e0b;
+	--ambar-neon: #fbbf24;
+	--cian: #22d3ee;
+	--azul: #2563eb;
+	--ambar-tenue: rgba(251, 191, 36, 0.14);
+	--cian-tenue: rgba(34, 211, 238, 0.14);
+	--reticula: rgba(148, 163, 184, 0.07);
+	--reticula-fuerte: rgba(148, 163, 184, 0.15);
+	--borde: rgba(148, 163, 184, 0.3);
+	--halo-ambar: 0 0 3px rgba(251, 191, 36, 0.55), 0 0 22px rgba(251, 191, 36, 0.32);
+	--halo-cian: 0 0 3px rgba(34, 211, 238, 0.5), 0 0 18px rgba(34, 211, 238, 0.28);
+
+	--f-impacto: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+	--f-editorial: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+	--f-cuerpo: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+	--f-tecnica: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+
+	--t-kicker: clamp(10px, 1cqi, 14px);
+	--t-chico: clamp(11px, 1.18cqi, 16px);
+	--t-texto: clamp(13px, 1.5cqi, 20px);
+	--t-titulo: clamp(24px, 4cqi, 56px);
+	--t-portada: clamp(30px, 5.6cqi, 80px);
+	--t-cifra: clamp(26px, 3.9cqi, 54px);
+	--t-mega: clamp(40px, 7.4cqi, 104px);
+	--barra: 64px;
+}
+
+html, body { height: 100%; }
+body {
+	background: var(--plano);
+	color: var(--tinta);
+	font-family: var(--f-cuerpo);
+	font-size: 16px;
+	line-height: 1.5;
+	overflow: hidden;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--plano); }
+
+.app { height: 100%; display: flex; flex-direction: column; }
+
+/* ---------- escenario ---------- */
+.escenario-wrap {
+	flex: 1;
+	min-height: 0;
+	container-type: size;
+	display: grid;
+	place-items: center;
+	padding-block: 12px 6px;
+	padding-left: max(16px, env(safe-area-inset-left, 0px));
+	padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.escenario {
+	position: relative;
+	width: min(100cqw, calc(100cqh * 16 / 9));
+	max-width: 100%;
+	aspect-ratio: 16 / 9;
+	container-type: inline-size;
+	overflow: hidden;
+	background: var(--plano);
+	border: 1px solid var(--borde);
+	border-radius: 6px;
+}
+.fondo, .grano { position: absolute; inset: 0; pointer-events: none; }
+.fondo {
+	background-image:
+		linear-gradient(var(--reticula-fuerte) 1px, transparent 1px),
+		linear-gradient(90deg, var(--reticula-fuerte) 1px, transparent 1px),
+		linear-gradient(var(--reticula) 1px, transparent 1px),
+		linear-gradient(90deg, var(--reticula) 1px, transparent 1px);
+	background-size: 23.4375cqi 23.4375cqi, 23.4375cqi 23.4375cqi, 4.6875cqi 4.6875cqi, 4.6875cqi 4.6875cqi;
+	background-position: -1px -1px;
+}
+.grano {
+	opacity: 0.09;
+	mix-blend-mode: overlay;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+
+/* ---------- diapositivas (transición bidireccional sin parpadeo) ---------- */
+.slide {
+	position: absolute;
+	inset: 0;
+	padding: 4cqi 5cqi 6.6cqi;
+	display: flex;
+	flex-direction: column;
+	gap: 2.2cqi;
+	opacity: 0;
+	visibility: hidden;
+	pointer-events: none;
+	transform: none;
+	transition: opacity 0.4s ease, transform 0.4s ease, visibility 0s linear 0.4s;
+}
+.slide.active {
+	opacity: 1;
+	visibility: visible;
+	pointer-events: auto;
+	transform: none;
+	transition: opacity 0.4s ease, transform 0.4s ease, visibility 0s;
+}
+.slide.out-left { opacity: 0; transform: translateX(-52px); }
+.slide.out-right { opacity: 0; transform: translateX(52px); }
+.slide.will-enter-left { transform: translateX(-52px) !important; opacity: 0 !important; transition: none !important; }
+.slide.will-enter-right { transform: translateX(52px) !important; opacity: 0 !important; transition: none !important; }
+
+.kicker {
+	font-family: var(--f-tecnica);
+	font-size: var(--t-kicker);
+	text-transform: uppercase;
+	letter-spacing: 0.16em;
+	color: var(--cian);
+	display: flex;
+	align-items: center;
+	gap: 0.8em;
+}
+.kicker::before { content: ""; width: 2.4em; height: 1px; background: var(--cian); box-shadow: var(--halo-cian); }
+
+.titular {
+	margin: 0;
+	font-size: var(--t-titulo);
+	line-height: 1.08;
+	text-wrap: balance;
+	font-weight: 400;
+}
+.ed { font-family: var(--f-editorial); font-style: italic; color: var(--tinta-2); font-weight: 400; }
+.imp { font-family: var(--f-impacto); font-weight: 800; text-transform: uppercase; letter-spacing: -0.02em; color: var(--tinta); }
+.clave { font-style: normal; color: var(--ambar-neon); text-shadow: var(--halo-ambar); position: relative; display: inline-block; }
+.subr svg { position: absolute; left: -2%; bottom: -0.16em; width: 104%; height: 0.28em; overflow: visible; }
+.subr path { fill: none; stroke: var(--ambar-neon); stroke-width: 3; stroke-linecap: round; filter: drop-shadow(0 0 3px rgba(251, 191, 36, 0.6)); }
+
+.texto { font-size: var(--t-texto); color: var(--tinta-2); margin: 0; max-width: 62ch; line-height: 1.5; }
+.mono { font-family: var(--f-tecnica); }
+
+.sello {
+	font-family: var(--f-tecnica);
+	font-size: var(--t-kicker);
+	font-weight: 600;
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
+	padding: 0.55em 0.9em;
+	border: 3px double currentColor;
+	border-radius: 4px;
+	transform: rotate(-4deg);
+	display: inline-block;
+	width: max-content;
+}
+.sello.cian { color: var(--cian); text-shadow: var(--halo-cian); }
+.sello.ambar { color: var(--ambar-neon); text-shadow: var(--halo-ambar); }
+
+/* ---------- pie con firma ---------- */
+.pie {
+	position: absolute;
+	left: 5cqi;
+	right: 5cqi;
+	bottom: 2cqi;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 2cqi;
+	font-family: var(--f-tecnica);
+	font-size: var(--t-kicker);
+	color: var(--tinta-2);
+	z-index: 2;
+}
+.firma { display: flex; align-items: baseline; gap: 1em; min-width: 0; }
+.monograma { font-family: var(--f-cuerpo); font-weight: 800; color: var(--ambar); font-size: 1.6em; letter-spacing: -0.02em; }
+.firma a { color: var(--tinta-2); text-decoration: none; border-bottom: 1px solid var(--borde); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.firma a:hover, .firma a:focus-visible { color: var(--tinta); border-bottom-color: var(--cian); }
+.contador { font-variant-numeric: tabular-nums; letter-spacing: 0.12em; white-space: nowrap; }
+
+/* ---------- 1 · portada ---------- */
+.portada { display: grid; grid-template-columns: 1.4fr 1fr; gap: 4cqi; align-items: center; flex: 1; min-height: 0; }
+.portada-izq { display: flex; flex-direction: column; gap: 2.4cqi; min-width: 0; }
+.portada .titular { font-size: var(--t-portada); }
+.dupla { display: flex; gap: 3cqi; flex-wrap: wrap; }
+.persona { display: flex; flex-direction: column; gap: 0.3em; border-left: 2px solid var(--ambar); padding-left: 1.2cqi; }
+.persona strong { font-size: var(--t-texto); color: var(--tinta); font-weight: 700; }
+.persona span { font-family: var(--f-tecnica); font-size: var(--t-kicker); letter-spacing: 0.1em; text-transform: uppercase; color: var(--tinta-2); }
+.ficha-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 2.4cqi; min-width: 0; }
+.ficha { width: 100%; border: 1px solid var(--borde); background: rgba(15, 23, 42, 0.86); font-family: var(--f-tecnica); font-size: var(--t-chico); }
+.ficha div { display: grid; grid-template-columns: 9.5em 1fr; border-bottom: 1px solid var(--borde); }
+.ficha div:last-child { border-bottom: 0; }
+.ficha dt, .ficha dd { margin: 0; padding: 0.7em 0.9em; }
+.ficha dt { color: var(--cian); text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.82em; border-right: 1px solid var(--borde); }
+.ficha dd { color: var(--tinta); }
+
+/* ---------- 2 · problema ---------- */
+.problema { display: grid; grid-template-columns: 1.25fr 1fr; gap: 3.5cqi; flex: 1; min-height: 0; align-items: start; }
+.planilla-wrap { min-width: 0; overflow-x: auto; }
+.planilla { width: 100%; border-collapse: collapse; font-size: var(--t-chico); }
+.planilla caption { text-align: left; font-family: var(--f-tecnica); font-size: var(--t-kicker); letter-spacing: 0.12em; text-transform: uppercase; color: var(--tinta-2); padding-bottom: 0.9em; }
+.planilla th { text-align: left; font-family: var(--f-tecnica); font-weight: 600; font-size: 0.8em; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cian); padding: 0.6em 0.7em; border-bottom: 1px solid var(--cian); }
+.planilla td { padding: 0.75em 0.7em; border-bottom: 1px solid var(--borde); color: var(--tinta); vertical-align: top; }
+.planilla td.bod { font-family: var(--f-tecnica); color: var(--tinta-2); white-space: nowrap; }
+.chip { display: inline-block; font-family: var(--f-tecnica); font-size: 0.86em; padding: 0.2em 0.6em; border-radius: 3px; white-space: nowrap; }
+.chip.falta { background: var(--ambar-tenue); color: var(--ambar-neon); border: 1px solid rgba(251, 191, 36, 0.5); }
+.chip.sobra { background: var(--cian-tenue); color: var(--cian); border: 1px solid rgba(34, 211, 238, 0.5); }
+.consecuencias { display: flex; flex-direction: column; gap: 1.6cqi; margin: 0; padding: 0; list-style: none; }
+.consecuencias li { display: grid; grid-template-columns: auto 1fr; gap: 0.3em 1.2cqi; font-size: var(--t-texto); }
+.consecuencias b { font-family: var(--f-tecnica); font-weight: 600; font-size: var(--t-chico); color: var(--ambar-neon); text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap; padding-top: 0.2em; }
+.consecuencias span { color: var(--tinta); }
+.hallazgo { margin: 0; font-size: var(--t-texto); color: var(--tinta-2); border-top: 1px solid var(--borde); padding-top: 1.4cqi; display: flex; justify-content: space-between; gap: 2cqi; flex-wrap: wrap; align-items: baseline; }
+.hallazgo .ed { font-size: 1.35em; color: var(--tinta); }
+.escala { font-family: var(--f-tecnica); font-size: var(--t-kicker); letter-spacing: 0.12em; text-transform: uppercase; color: var(--cian); }
+
+/* ---------- 3 · solución: diagrama de convergencia ---------- */
+.convergencia { display: grid; grid-template-columns: 1fr auto 1.45fr auto 1.15fr; gap: 1.4cqi; align-items: start; align-content: center; flex: 1; min-height: 0; }
+.convergencia .flecha { align-self: center; }
+.col-titulo { font-family: var(--f-tecnica); font-size: var(--t-kicker); letter-spacing: 0.14em; text-transform: uppercase; color: var(--tinta-2); margin-bottom: 0.8cqi; }
+.entradas, .salidas, .criterio { display: flex; flex-direction: column; gap: 0.8cqi; min-width: 0; }
+.entrada { font-size: var(--t-chico); padding: 0.55em 0.8em; border: 1px dashed var(--borde); color: var(--tinta); background: rgba(15, 23, 42, 0.8); }
+.flecha { font-family: var(--f-tecnica); color: var(--cian); font-size: var(--t-titulo); text-shadow: var(--halo-cian); line-height: 1; }
+.paso { position: relative; border: 1px solid var(--borde); background: var(--plano-2); padding: 0.75em 0.95em; display: grid; gap: 0.15em; }
+.paso b { font-size: var(--t-chico); font-weight: 700; color: var(--tinta); }
+.paso small { font-family: var(--f-tecnica); font-size: calc(var(--t-kicker) * 1.02); color: var(--tinta-2); letter-spacing: 0.02em; }
+.paso.llm { border-color: var(--ambar-neon); box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.25), 0 0 18px rgba(251, 191, 36, 0.12); }
+.paso.llm b { color: var(--ambar-neon); }
+.paso.politica { border-color: var(--cian); }
+.paso.politica b { color: var(--cian); }
+.paso + .paso::before { content: "↓"; position: absolute; top: -1.15em; left: 1em; font-family: var(--f-tecnica); color: var(--tinta-2); font-size: var(--t-kicker); }
+.llamada { display: flex; align-items: center; gap: 0.6em; font-family: var(--f-tecnica); font-size: var(--t-kicker); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ambar-neon); margin-top: 0.3em; }
+.llamada::before { content: ""; width: 0.55em; height: 0.55em; border-radius: 50%; background: var(--ambar-neon); box-shadow: var(--halo-ambar); flex: none; }
+.llamada::after { content: ""; flex: 1; border-top: 1px dashed var(--ambar-neon); min-width: 2em; }
+.salida { border: 1px solid var(--borde); padding: 0.7em 0.9em; display: grid; gap: 0.2em; background: rgba(15, 23, 42, 0.86); }
+.salida b { font-size: var(--t-chico); color: var(--tinta); }
+.salida small { font-size: calc(var(--t-chico) * 0.92); color: var(--tinta-2); }
+.salida.ejecuta { border-left: 3px solid var(--cian); }
+.salida.aprueba { border-left: 3px solid var(--ambar-neon); }
+.salida.sugiere { border-left: 3px dashed var(--tinta-2); }
+.garantias { display: flex; gap: 3cqi; flex-wrap: wrap; margin: 0; padding: 1.2cqi 0 0; border-top: 1px solid var(--borde); list-style: none; font-size: var(--t-chico); color: var(--tinta-2); }
+.garantias li::before { content: "■ "; color: var(--cian); }
+
+/* ---------- 4 · demo ---------- */
+.ruta { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.4cqi; flex: 1; min-height: 0; align-content: start; counter-reset: paso; }
+.ruta li { counter-increment: paso; border: 1px solid var(--borde); background: rgba(15, 23, 42, 0.86); padding: 1.2cqi 1.3cqi; display: grid; gap: 0.5cqi; align-content: start; position: relative; }
+.ruta .hora { font-family: var(--f-tecnica); font-size: var(--t-kicker); color: var(--cian); letter-spacing: 0.12em; font-variant-numeric: tabular-nums; display: flex; justify-content: space-between; gap: 1em; }
+.ruta .hora::before { content: "PASO " counter(paso); color: var(--tinta-2); }
+.ruta b { font-size: var(--t-texto); color: var(--tinta); line-height: 1.25; }
+.ruta .donde { font-family: var(--f-tecnica); font-size: var(--t-kicker); color: var(--tinta-2); letter-spacing: 0.04em; }
+.quien { position: absolute; top: 1.1cqi; right: 1.2cqi; font-family: var(--f-tecnica); font-size: var(--t-kicker); font-weight: 600; letter-spacing: 0.1em; padding: 0.15em 0.5em; border-radius: 3px; }
+.quien.e { background: var(--ambar-tenue); color: var(--ambar-neon); }
+.quien.f { background: var(--cian-tenue); color: var(--cian); }
+.ruta .hora { padding-right: 5.5em; }
+.demo-pie { display: flex; justify-content: space-between; align-items: center; gap: 2cqi; flex-wrap: wrap; }
+.demo-pie .mono { font-size: var(--t-kicker); color: var(--tinta-2); letter-spacing: 0.1em; }
+
+/* ---------- 5 · resultado ---------- */
+.resultado { display: grid; grid-template-columns: 1.5fr 1fr; gap: 3.5cqi; flex: 1; min-height: 0; align-items: start; }
+.cifras { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.4cqi; }
+.cifra { border: 1px solid var(--borde); background: rgba(15, 23, 42, 0.86); padding: 1.3cqi 1.4cqi; display: grid; gap: 0.4cqi; align-content: start; }
+.cifra strong { font-family: var(--f-impacto); font-weight: 800; font-size: var(--t-cifra); line-height: 1.04; color: var(--tinta); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.cifra.marcada strong { color: var(--ambar-neon); text-shadow: var(--halo-ambar); }
+.cifra span { font-size: var(--t-chico); color: var(--tinta-2); }
+.letra-chica { font-family: var(--f-tecnica); font-size: var(--t-kicker); color: var(--tinta-2); letter-spacing: 0.04em; line-height: 1.6; margin: 0; max-width: 60ch; }
+.sigue { display: flex; flex-direction: column; gap: 1.4cqi; }
+.sigue h3 { margin: 0; font-family: var(--f-tecnica); font-size: var(--t-kicker); letter-spacing: 0.16em; text-transform: uppercase; color: var(--cian); font-weight: 600; }
+.sigue ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 1.2cqi; counter-reset: s; }
+.sigue li { counter-increment: s; display: grid; grid-template-columns: auto 1fr; gap: 1cqi; font-size: var(--t-texto); color: var(--tinta); }
+.sigue li::before { content: counter(s); font-family: var(--f-tecnica); color: var(--ambar-neon); font-size: var(--t-chico); padding-top: 0.2em; }
+.sigue li small { display: block; color: var(--tinta-2); font-size: var(--t-chico); margin-top: 0.2em; }
+
+/* ---------- notas y controles ---------- */
+.notas {
+	max-height: 36dvh;
+	overflow-y: auto;
+	border-top: 1px solid var(--borde);
+	background: var(--plano-2);
+	padding-block: 12px;
+	padding-left: max(16px, env(safe-area-inset-left, 0px));
+	padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.notas-dentro { max-width: 1100px; margin: 0 auto; display: grid; gap: 10px; }
+.nota { display: grid; grid-template-columns: 7.5em 5.5em 1fr; gap: 4px 14px; align-items: baseline; font-size: 15px; }
+.nota .t { font-family: var(--f-tecnica); color: var(--cian); font-size: 13px; font-variant-numeric: tabular-nums; }
+.nota .q { font-family: var(--f-tecnica); font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.nota .q.e { color: var(--ambar-neon); }
+.nota .q.f { color: var(--cian); }
+.nota .cuerpo { min-width: 0; color: var(--tinta); line-height: 1.55; }
+.nota .pantalla { display: block; font-family: var(--f-tecnica); font-size: 12px; color: var(--tinta-2); letter-spacing: 0.04em; margin-bottom: 2px; }
+
+.controles {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	min-height: var(--barra);
+	padding-block: 8px;
+	padding-left: max(16px, env(safe-area-inset-left, 0px));
+	padding-right: max(16px, env(safe-area-inset-right, 0px));
+	border-top: 1px solid var(--borde);
+	background: var(--plano);
+	flex-wrap: wrap;
+}
+.grupo { display: flex; gap: 8px; align-items: center; }
+.btn {
+	min-width: 44px;
+	min-height: 44px;
+	padding: 0 14px;
+	border-radius: 6px;
+	border: 1px solid var(--borde);
+	background: var(--plano-2);
+	color: var(--tinta);
+	font: 600 14px/1 var(--f-cuerpo);
+	cursor: pointer;
+	touch-action: manipulation;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+}
+.btn:hover { border-color: var(--cian); }
+.btn:active { background: var(--plano); transform: translateY(1px); }
+.btn:focus-visible, .firma a:focus-visible { outline: 2px solid var(--cian); outline-offset: 2px; }
+.btn[aria-pressed="true"], .btn[aria-expanded="true"] { border-color: var(--ambar-neon); color: var(--ambar-neon); }
+.btn.primario { background: var(--ambar); color: var(--plano); border-color: var(--ambar); }
+.btn.primario:hover { background: #d97706; border-color: #d97706; }
+.atajo { font-family: var(--f-tecnica); font-size: 11px; color: var(--tinta-2); border: 1px solid var(--borde); border-radius: 3px; padding: 1px 5px; }
+.btn[aria-pressed="true"] .atajo, .btn[aria-expanded="true"] .atajo { color: var(--ambar-neon); border-color: var(--ambar-neon); }
+.pos { font-family: var(--f-tecnica); font-size: 13px; color: var(--tinta-2); font-variant-numeric: tabular-nums; min-width: 4.5em; text-align: center; }
+
+/* ---------- guion completo ---------- */
+.guion {
+	position: fixed;
+	inset: 0;
+	z-index: 20;
+	background: var(--plano);
+	overflow-y: auto;
+	padding-top: calc(env(safe-area-inset-top, 0px) + 16px);
+	padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 32px);
+	padding-left: max(16px, env(safe-area-inset-left, 0px));
+	padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.guion-dentro { max-width: 760px; margin: 0 auto; display: grid; gap: 28px; }
+.guion-cab { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; position: sticky; top: 0; background: var(--plano); padding-block: 10px; border-bottom: 1px solid var(--borde); z-index: 1; }
+.guion h2 { margin: 0; font-family: var(--f-impacto); font-weight: 800; font-size: 26px; text-transform: uppercase; letter-spacing: -0.01em; }
+.guion h2 .ed { text-transform: none; font-size: 1.1em; }
+.guion h3 { margin: 0 0 10px; font-family: var(--f-tecnica); font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--cian); font-weight: 600; }
+.reparto { font-size: 15px; color: var(--tinta-2); margin: 0; }
+.reparto b { color: var(--tinta); }
+.lista { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; color: var(--tinta); font-size: 15px; line-height: 1.55; }
+.lista code, .nota code { font-family: var(--f-tecnica); font-size: 0.9em; color: var(--ambar-neon); background: var(--ambar-tenue); padding: 0 4px; border-radius: 3px; }
+.bloque-guion { display: grid; gap: 12px; }
+.bloque-guion .nota { border-top: 1px solid var(--borde); padding-top: 10px; }
+.aviso { position: fixed; left: 50%; bottom: calc(var(--barra) + 16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--cian); color: var(--plano); font: 600 14px var(--f-cuerpo); padding: 10px 16px; border-radius: 6px; z-index: 30; }
+.respaldo { width: 100%; min-height: 160px; font: 13px/1.5 var(--f-tecnica); background: var(--plano-2); color: var(--tinta); border: 1px solid var(--borde); border-radius: 6px; padding: 10px; }
+
+/* ---------- celular ---------- */
+@media (max-width: 768px) {
+	.escenario-wrap { container-type: normal; place-items: stretch; }
+	.escenario { width: 100%; height: 100%; aspect-ratio: auto; }
+	.slide { padding: 20px 18px 64px; gap: 16px; overflow-y: auto; }
+	.portada, .problema, .resultado { grid-template-columns: 1fr; gap: 20px; }
+	.ficha-wrap { align-items: stretch; }
+	.convergencia { grid-template-columns: 1fr; gap: 10px; }
+	.flecha { transform: rotate(90deg); justify-self: center; }
+	.ruta { grid-template-columns: 1fr; gap: 10px; }
+	.ruta li { padding: 14px; }
+	.quien { top: 14px; right: 14px; }
+	.cifras { gap: 10px; }
+	.pie { left: 18px; right: 18px; bottom: 14px; background: var(--plano); }
+	.firma a { display: none; }
+	.nota { grid-template-columns: 1fr; }
+	.btn .txt { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.slide, .slide.active { transition: none !important; }
+}
+</style>
+
+<div class="app">
+	<main class="escenario-wrap">
+		<div class="escenario" id="escenario" aria-roledescription="presentación" aria-label="Xperp en vivo">
+			<div class="fondo" aria-hidden="true"></div>
+			<div class="grano" aria-hidden="true"></div>
+
+			<!-- 1 · Portada -->
+			<section class="slide active" data-n="1" aria-roledescription="diapositiva" aria-label="1 de 5: portada">
+				<div class="kicker">Xperp · ERP con inteligencia artificial · sustentación</div>
+				<div class="portada">
+					<div class="portada-izq">
+						<h1 class="titular">
+							<span class="ed">Su ERP anota lo que pasó.</span><br>
+							<span class="imp">Xperp <em class="clave subr">decide<svg viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden="true"><path d="M3 8 C 48 3, 118 11, 197 4"/></svg></em></span>
+							<span class="ed">lo que sigue.</span>
+						</h1>
+						<p class="texto">Compra, despacha y explica cada decisión de una distribuidora. Lo grande lo aprueba una persona.</p>
+						<div class="dupla">
+							<div class="persona"><strong>Erick Albornoz</strong><span>Frontend · simulación · socios</span></div>
+							<div class="persona"><strong>Frank David Palma</strong><span>Dominio · inteligencia artificial</span></div>
+						</div>
+					</div>
+					<div class="ficha-wrap">
+						<span class="sello cian">En vivo · 6 min</span>
+						<dl class="ficha">
+							<div><dt>Proyecto</dt><dd>Xperp (Expert ERP)</dd></div>
+							<div><dt>Caso</dt><dd>Distribuidora La Ceiba S.A.S. · datos de prueba</dd></div>
+							<div><dt>Alcance</dt><dd>Inventario · ventas · compras · bodega · despachos · presupuesto</dd></div>
+							<div><dt>Construido con</dt><dd>Java 21 · Spring Boot · SvelteKit · PostgreSQL</dd></div>
+							<div><dt>Revisión</dt><dd>2026-10-31</dd></div>
+						</dl>
+					</div>
+				</div>
+			</section>
+
+			<!-- 2 · Problema -->
+			<section class="slide" data-n="2" aria-roledescription="diapositiva" aria-label="2 de 5: el problema">
+				<div class="kicker">El problema</div>
+				<h2 class="titular"><span class="ed">Cada mañana alguien decide</span> <span class="imp">qué <em class="clave">comprar</em></span></h2>
+				<div class="problema">
+					<div class="planilla-wrap">
+						<table class="planilla">
+							<caption>Planilla del día 1 · Distribuidora La Ceiba</caption>
+							<thead><tr><th scope="col">Producto</th><th scope="col">Bodega</th><th scope="col">Cómo amanece</th></tr></thead>
+							<tbody>
+								<tr><td>Leche entera UHT 1 L</td><td class="bod">Yumbo</td><td><span class="chip falta">Baja</span></td></tr>
+								<tr><td>Aceite vegetal 1 L</td><td class="bod">Yumbo</td><td><span class="chip falta">Bajo</span></td></tr>
+								<tr><td>Papel higiénico x 12</td><td class="bod">Yumbo</td><td><span class="chip falta">Bajo el punto de pedido</span></td></tr>
+								<tr><td>Pañales etapa 3 x 30</td><td class="bod">Bogotá</td><td><span class="chip falta">0 unidades</span> <span class="chip sobra">Yumbo: 40 días</span></td></tr>
+								<tr><td>Caramelos surtidos x 100</td><td class="bod">Yumbo</td><td><span class="chip sobra">90 días de inventario</span></td></tr>
+							</tbody>
+						</table>
+					</div>
+					<ul class="consecuencias">
+						<li><b>Decide tarde</b><span>El producto se agota y la venta se pierde.</span></li>
+						<li><b>Compra de más</b><span>La plata se queda quieta en la bodega.</span></li>
+						<li><b>No lo escribe</b><span>Nadie sabe después por qué se decidió así.</span></li>
+					</ul>
+				</div>
+				<p class="hallazgo"><span class="ed">Un ERP normal guarda lo que pasó; la decisión sigue en la cabeza de alguien.</span><span class="escala">42 productos · 2 bodegas · 9 proveedores · 3 transportadoras</span></p>
+			</section>
+
+			<!-- 3 · Solución -->
+			<section class="slide" data-n="3" aria-roledescription="diapositiva" aria-label="3 de 5: la solución">
+				<div class="kicker">La solución · cómo decide</div>
+				<h2 class="titular"><span class="ed">La IA propone,</span> <span class="imp">la <em class="clave">política</em> decide</span></h2>
+				<div class="convergencia">
+					<div class="entradas">
+						<div class="col-titulo">Lo que ve</div>
+						<div class="entrada">Ventas del día</div>
+						<div class="entrada">Existencias por bodega</div>
+						<div class="entrada">Ofertas de 9 proveedores</div>
+						<div class="entrada">Presupuesto por categoría</div>
+						<div class="entrada">Retrasos y rechazos</div>
+					</div>
+					<div class="flecha" aria-hidden="true">→</div>
+					<div class="criterio">
+						<div class="col-titulo">Cómo decide</div>
+						<div class="paso"><b>Reglas y pronóstico</b><small>Cuánto se vende, cuándo pedir, cuánto</small></div>
+						<div class="paso"><b>Puntaje de proveedores</b><small>Precio 40 % · entrega 25 % · cumplimiento 25 % · preferido 10 %</small></div>
+						<div class="paso llm"><b>Modelo de lenguaje</b><small>Empates, rechazos, anomalías</small><span class="llamada">Solo entra aquí</span></div>
+						<div class="paso politica"><b>Política</b><small>Monto, presupuesto, nivel de autonomía</small></div>
+					</div>
+					<div class="flecha" aria-hidden="true">→</div>
+					<div class="salidas">
+						<div class="col-titulo">Qué pasa</div>
+						<div class="salida ejecuta"><b>Ejecuta y avisa</b><small>Compras de menos de $ 5 M</small></div>
+						<div class="salida aprueba"><b>Espera a una persona</b><small>$ 5 a 20 M: compras · más de $ 20 M: gerencia · traslados y ajustes</small></div>
+						<div class="salida sugiere"><b>Solo sugiere</b><small>Modo sombra</small></div>
+					</div>
+				</div>
+				<ul class="garantias">
+					<li>La IA nunca toca la base de datos</li>
+					<li>Cada decisión guarda qué vio, qué alternativas tenía y por qué eligió</li>
+					<li>Si se apaga, el ERP sigue a mano</li>
+				</ul>
+			</section>
+
+			<!-- 4 · Demo -->
+			<section class="slide" data-n="4" aria-roledescription="diapositiva" aria-label="4 de 5: demo en vivo">
+				<div class="kicker">Demo en vivo · 3 min 40 s</div>
+				<h2 class="titular"><span class="ed">Un día de La Ceiba,</span> <span class="imp"><em class="clave">en vivo</em></span></h2>
+				<ol class="ruta">
+					<li><span class="quien e">ERICK</span><span class="hora">1:40</span><b>Arranca el día y entran pedidos</b><span class="donde">Simulación → Tablero</span></li>
+					<li><span class="quien f">FRANK</span><span class="hora">2:05</span><b>Compra sola y explica por qué</b><span class="donde">IA → Decisiones · Tipo: Reabastecimiento</span></li>
+					<li><span class="quien e">ERICK</span><span class="hora">2:45</span><b>Lo grande espera a una persona</b><span class="donde">IA → Aprobaciones → Compras → correo</span></li>
+					<li><span class="quien f">FRANK · ERICK</span><span class="hora">3:25</span><b>Traslada en vez de comprar y despacha con guía</b><span class="donde">IA → Aprobaciones → Despachos</span></li>
+					<li><span class="quien e">ERICK</span><span class="hora">4:05</span><b>Se le puede preguntar</b><span class="donde">Inventario → Preguntar a la IA</span></li>
+					<li><span class="quien f">FRANK</span><span class="hora">4:45</span><b>Quién manda</b><span class="donde">IA → Políticas</span></li>
+				</ol>
+				<div class="demo-pie">
+					<span class="mono">Día 1 · 1 de noviembre de 2026 · 20 segundos por día simulado</span>
+					<span class="sello ambar">Sin trucos: datos en vivo</span>
+				</div>
+			</section>
+
+			<!-- 5 · Resultado -->
+			<section class="slide" data-n="5" aria-roledescription="diapositiva" aria-label="5 de 5: resultado y qué sigue">
+				<div class="kicker">Lo probamos un mes completo</div>
+				<h2 class="titular"><span class="ed">Un mes simulado:</span> <span class="imp"><em class="clave">14 de 14</em></span> <span class="ed">escenarios cumplidos</span></h2>
+				<div class="resultado">
+					<div class="sigue" style="gap: 1.6cqi">
+						<div class="cifras">
+							<div class="cifra marcada"><strong>99,7 %</strong><span>de nivel de servicio en el mes</span></div>
+							<div class="cifra"><strong>314</strong><span>unidades perdidas en todo el mes</span></div>
+							<div class="cifra"><strong>77,5 %</strong><span>del presupuesto de compras usado</span></div>
+							<div class="cifra"><strong>$ 7,2 M</strong><span>de sobrecosto por cambiar de proveedor, explicado en cada decisión</span></div>
+						</div>
+						<p class="letra-chica">Del 1 al 30 de noviembre de 2026, con datos de prueba (semilla 42), IA en modo simulado y un aprobador virtual. Revisado en la base de datos, escenario por escenario, el 2026-10-30.</p>
+					</div>
+					<div class="sigue">
+						<span class="sello cian">Verificado</span>
+						<h3>Qué sigue</h3>
+						<ol>
+							<li><span>Probarlo con un modelo de IA real<small>Hasta ahora corrió en modo simulado</small></span></li>
+							<li><span>Trasladar el exceso entre bodegas antes de comprar<small>Hoy solo traslada cuando la falta es urgente</small></span></li>
+						</ol>
+					</div>
+				</div>
+			</section>
+
+			<div class="pie">
+				<div class="firma"><span class="monograma">EAx</span><a href="https://linkedin.com/in/erick-albornoz" target="_blank" rel="noopener">Erick Albornoz · Consultor de operaciones · Automatización e IA</a></div>
+				<span class="contador" id="contador">01 — 05</span>
+			</div>
+		</div>
+	</main>
+
+	<section class="notas" id="notas" aria-label="Notas del presentador" hidden>
+		<div class="notas-dentro" id="notas-dentro"></div>
+	</section>
+
+	<nav class="controles" aria-label="Controles de la presentación">
+		<div class="grupo">
+			<button class="btn" id="btn-ant" type="button" aria-label="Diapositiva anterior">←<span class="txt">Anterior</span></button>
+			<span class="pos" id="pos" aria-live="polite">1 / 5</span>
+			<button class="btn primario" id="btn-sig" type="button" aria-label="Diapositiva siguiente"><span class="txt">Siguiente</span>→</button>
+		</div>
+		<div class="grupo">
+			<button class="btn" id="btn-notas" type="button" aria-expanded="false" aria-controls="notas">Notas <span class="atajo">N</span></button>
+			<button class="btn" id="btn-guion" type="button" aria-expanded="false" aria-controls="guion">Guion <span class="atajo">G</span></button>
+			<button class="btn" id="btn-pantalla" type="button" aria-label="Pantalla completa">⛶<span class="txt">Pantalla completa</span></button>
+		</div>
+	</nav>
+</div>
+
+<section class="guion" id="guion" aria-label="Guion completo" hidden>
+	<div class="guion-dentro">
+		<div class="guion-cab">
+			<h2><span class="ed">Guion de</span> Xperp en vivo</h2>
+			<div class="grupo">
+				<button class="btn" id="btn-copiar" type="button">Copiar guion</button>
+				<button class="btn primario" id="btn-cerrar" type="button">Cerrar <span class="atajo">Esc</span></button>
+			</div>
+		</div>
+		<p class="reparto">Seis minutos: dos y medio de diapositivas y tres y medio de aplicación en vivo. <b>Erick</b> habla unos 3 min 15 s y maneja la aplicación; <b>Frank</b> habla unos 2 min 45 s y explica cómo decide la IA y quién la controla.</p>
+		<div id="respaldo-wrap" hidden><textarea class="respaldo" id="respaldo" readonly aria-label="Guion en texto para copiar"></textarea></div>
+		<section><h3>Antes de presentar</h3><ol class="lista" id="lista-prep"></ol></section>
+		<section class="bloque-guion" id="bloque-guion"></section>
+		<section><h3>Si algo falla</h3><ul class="lista" id="lista-planb"></ul></section>
+	</div>
+</section>
+
+<div class="aviso" id="aviso" role="status" hidden></div>
+
+<script>
+(function () {
+	// Una sola fuente para las notas, el guion completo y el texto que se copia.
+	const GUION = [
+		{ titulo: 'Diapositiva 1 · Portada', pasos: [
+			{ t: '0:00–0:15', q: 'Erick', p: 'Diapositiva 1', x: 'Buenas. Somos Erick Albornoz y Frank David Palma. Les vamos a mostrar Xperp, un ERP en el que la inteligencia artificial no se queda en dar consejos: compra, despacha y deja escrito por qué lo hizo. Y lo van a ver funcionando en vivo.' }
+		] },
+		{ titulo: 'Diapositiva 2 · El problema', pasos: [
+			{ t: '0:15–0:55', q: 'Erick', p: 'Diapositiva 2', x: 'Piensen en una distribuidora como La Ceiba, nuestra empresa de prueba: 42 productos, una bodega en Yumbo y otra en Bogotá, nueve proveedores y tres transportadoras. Cada mañana alguien mira esta planilla y decide qué se va a acabar, cuánto pedir y a quién, y qué hacer si un proveedor se retrasa. Si decide tarde, el producto se agota y la venta se pierde. Si compra de más, la plata se queda quieta en la bodega, como estos caramelos con 90 días de inventario. Y casi nunca queda escrito por qué se decidió así. Un ERP normal guarda lo que pasó, pero la decisión sigue en la cabeza de una persona. Eso fue lo que resolvimos.' }
+		] },
+		{ titulo: 'Diapositiva 3 · La solución', pasos: [
+			{ t: '0:55–1:40', q: 'Frank', p: 'Diapositiva 3', x: 'Xperp mete la IA dentro del trabajo diario, pero con reglas. Parte de lo que ve: ventas, existencias, ofertas de los proveedores, presupuesto y avisos de retraso. Lo que tiene respuesta exacta lo resuelven fórmulas: cuánto se vende al día, cuándo pedir y cuánto. Luego califica a cada proveedor por precio, tiempo de entrega y cumplimiento. El modelo de lenguaje solo entra cuando hace falta criterio: un empate, un rechazo o un pedido raro. Y al final no decide la IA, decide la política: una compra de menos de 5 millones se ejecuta sola; de 5 a 20 la aprueba compras, y de ahí para arriba, gerencia. La IA nunca toca la base de datos y cada decisión queda registrada. Veámoslo.' }
+		] },
+		{ titulo: 'Diapositiva 4 · Demo en vivo (cambiar a la aplicación)', pasos: [
+			{ t: '1:40–2:05', q: 'Erick', p: 'Simulación → Iniciar → Tablero → Pausar', x: 'Esta es la empresa el 1 de noviembre a medianoche. Inicio la simulación: cada día dura 20 segundos. En el tablero, los pedidos de los clientes entran solos, y a las 6 de la mañana corre el ciclo de compras. [Dejar correr unos 15 segundos, hasta la tarde del día 1, y pulsar Pausar.] Pauso aquí.' },
+			{ t: '2:05–2:45', q: 'Frank', p: 'IA → Decisiones → filtro Tipo: «Reabastecimiento» → «Reabastecer BEB-001 en CAL-01 con PRV-03»', x: 'En lo que va del día, la IA ya tomó más de 50 decisiones, casi todas de despachos. [Filtrar por Reabastecimiento.] Veamos una de compras: reponer leche en Yumbo. En «Qué vio» están los números que usó: existencias, venta diaria y punto de pedido. En «Alternativas», cada proveedor con su puntaje. Eligió Lácteos La Pradera, 0,91 puntos contra 0,63 del segundo, porque entrega en un día y cumple el 92 %. Y como la orden es de unos 3 millones, la política la dejó ejecutar sola. Ya se le envió al proveedor.' },
+			{ t: '2:45–3:25', q: 'Erick', p: 'IA → Aprobaciones → papel higiénico → Aprobar; luego Compras y la pestaña del correo', x: 'Esta otra compra, papel higiénico por 14,3 millones, no se ejecutó: pasa de 5 millones y espera a compras. La apruebo. [Aprobar.] En Compras, la orden OC-2026-000002 pasó de «Por aprobar» a «Enviada». Y aquí en el correo le llegó al proveedor, con el PDF de la orden.' },
+			{ t: '3:25–3:50', q: 'Frank', p: 'IA → Aprobaciones → «Trasladar CPE-006 de CAL-01 a BOG-01» → Aprobar', x: 'Esto no lo haría una regla simple. En Bogotá se acabaron los pañales, pero en Yumbo hay para 40 días. En vez de comprar, la IA propone trasladar, y como mover inventario es delicado, lo aprueba gerencia. [Aprobar.]' },
+			{ t: '3:50–4:05', q: 'Erick', p: 'Despachos', x: 'Y en Despachos, los pedidos de hoy ya salieron con transportadora y guía, sin que nadie las asignara. [Abrir una guía en PDF.]' },
+			{ t: '4:05–4:45', q: 'Erick', p: 'Inventario → Recomendaciones de la IA; botón «Preguntar a la IA» → «¿Qué me recomiendas reponer?»', x: 'Esto lo construimos para que la IA no sea un adorno. En Inventario dice qué haría con cada producto y por qué. Como ya aprobamos las compras y el traslado, queda una sola: en Yumbo todavía sobran pañales, así que no los repone. Y desde cualquier pantalla se le puede preguntar. [Clic en «¿Qué me recomiendas reponer?».] Contesta que nada, porque todo lo que estaba bajo ya tiene una orden en camino. Responde con los datos del sistema; desde el chat solo puede leer, no ejecuta nada.' },
+			{ t: '4:45–5:20', q: 'Frank', p: 'IA → Políticas → Controles de emergencia', x: 'Y lo más importante: quién manda. Aquí se cambian los niveles de autonomía y los montos. El modo sombra deja que la IA decida sin ejecutar nada, para medir cuánto acertaría frente a una persona. Y el kill switch bloquea toda acción de la IA: el ERP sigue funcionando, a mano. [Volver a la presentación, diapositiva 5.]' }
+		] },
+		{ titulo: 'Diapositiva 5 · Resultado y qué sigue', pasos: [
+			{ t: '5:20–5:40', q: 'Frank', p: 'Diapositiva 5', x: 'Eso fue un día. También corrimos el mes completo con los 14 eventos del guion: retrasos, rechazos, alzas de precio, festivos, quincena y un pedido sospechoso. Se cumplieron los 14, y lo revisamos en la base de datos, no en la pantalla. El mes cerró con 99,7 % de nivel de servicio y solo 314 unidades perdidas.' },
+			{ t: '5:40–6:00', q: 'Erick', p: 'Diapositiva 5', x: 'Lo que sigue: probarlo con un modelo de IA real, porque hasta ahora corrió en modo simulado, y que traslade el exceso entre bodegas antes de comprar. Todo está en el repositorio y arranca completo con un solo comando. ¿Preguntas?' }
+		] }
+	];
+	const PREPARACION = [
+		'Usen la rama <code>erick_developer</code>, o <code>main</code> cuando Frank fusione el #19 y el #20: de ahí salen las recomendaciones de Inventario y el botón «Preguntar a la IA».',
+		'Revisen en <code>.env</code> que <code>LLM_PROVIDER=mock</code> y <code>SIM_AUTO_APPROVE=false</code>, para que las compras grandes esperen a que ustedes las aprueben.',
+		'Cierren los programas que no usen: en las pruebas, el equipo se quedó sin memoria.',
+		'En la carpeta del proyecto: <code>docker compose up -d --build</code>. La primera vez tarda varios minutos; háganlo antes de entrar. La aplicación queda en <code>http://localhost:3000</code> y el correo de prueba en <code>http://localhost:8025</code>.',
+		'Entren con <code>admin@laceiba.demo</code> / <code>Xperp2026*</code>. En Simulación, pulsen «Reiniciar demo»: deja el día 1 a medianoche, en pausa, con 20 segundos por día.',
+		'En el correo de prueba, borren los correos de los ensayos para que arriba quede solo la orden de la demo.',
+		'Dejen abiertas dos pestañas, la aplicación y el correo, con el zoom del navegador al 125 % para el proyector.',
+		'Ensayen una vez con cronómetro y vuelvan a pulsar «Reiniciar demo» antes de presentar: la empresa vuelve exactamente al mismo punto.'
+	];
+	const PLAN_B = [
+		'Si una pantalla no responde, recarguen la página: la sesión no se pierde.',
+		'Si en Despachos todavía no hay envíos, quiten la pausa unos segundos y vuelvan a pausar.',
+		'Si la simulación se enreda, «Reiniciar demo» tarda unos 30 segundos; mientras tanto, Frank sigue con la diapositiva 3 o con Políticas.',
+		'Si el backend no arranca, muestren las pantallas con datos de ejemplo (<code>PUBLIC_API_MOCK=true npm run dev</code> en <code>frontend/</code>) y díganlo en voz alta: son datos de ejemplo.'
+	];
+	// Bloque del guion que se ve en las notas de cada diapositiva (el bloque 4 es la demo).
+	const NOTAS_POR_DIAPOSITIVA = [0, 1, 2, 3, 4];
+
+	const $ = (id) => document.getElementById(id);
+	const slides = Array.from(document.querySelectorAll('.slide'));
+	const total = slides.length;
+	let actual = 0;
+	let avisoT = null;
+
+	function escapar(s) {
+		return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+	}
+	function htmlPaso(p) {
+		const clase = p.q.startsWith('Erick') ? 'e' : 'f';
+		const texto = escapar(p.x).replace(/\[([^\]]+)\]/g, '<em style="color:var(--cian)">[$1]</em>');
+		return '<div class="nota"><span class="t">' + p.t + '</span><span class="q ' + clase + '">' + p.q + '</span>' +
+			'<div class="cuerpo"><span class="pantalla">' + escapar(p.p) + '</span>' + texto + '</div></div>';
+	}
+	function pintarNotas() {
+		const bloque = GUION[NOTAS_POR_DIAPOSITIVA[actual]];
+		$('notas-dentro').innerHTML = bloque ? bloque.pasos.map(htmlPaso).join('') : '';
+	}
+	function pintarGuion() {
+		$('lista-prep').innerHTML = PREPARACION.map((x) => '<li>' + x + '</li>').join('');
+		$('lista-planb').innerHTML = PLAN_B.map((x) => '<li>' + x + '</li>').join('');
+		$('bloque-guion').innerHTML = GUION.map((b) => '<div><h3>' + b.titulo + '</h3>' + b.pasos.map(htmlPaso).join('') + '</div>').join('');
+	}
+	function textoPlano() {
+		const sinEtiquetas = (s) => s.replace(/<[^>]+>/g, '');
+		const lineas = ['GUION · XPERP EN VIVO (6 minutos)', '', 'ANTES DE PRESENTAR'];
+		PREPARACION.forEach((x, i) => lineas.push((i + 1) + '. ' + sinEtiquetas(x)));
+		GUION.forEach((b) => {
+			lineas.push('', b.titulo.toUpperCase());
+			b.pasos.forEach((p) => lineas.push(p.t + ' · ' + p.q.toUpperCase() + ' (' + p.p + ')', p.x, ''));
+		});
+		lineas.push('SI ALGO FALLA');
+		PLAN_B.forEach((x) => lineas.push('- ' + sinEtiquetas(x)));
+		return lineas.join('\n');
+	}
+	function avisar(msg) {
+		const el = $('aviso');
+		el.textContent = msg;
+		el.hidden = false;
+		clearTimeout(avisoT);
+		avisoT = setTimeout(() => { el.hidden = true; }, 2200);
+	}
+
+	function actualizarEstado() {
+		const n = String(actual + 1).padStart(2, '0');
+		$('contador').textContent = n + ' — ' + String(total).padStart(2, '0');
+		$('pos').textContent = (actual + 1) + ' / ' + total;
+		$('btn-ant').disabled = actual === 0;
+		$('btn-sig').disabled = actual === total - 1;
+		slides.forEach((s, i) => s.setAttribute('aria-hidden', i === actual ? 'false' : 'true'));
+		pintarNotas();
+		try { history.replaceState(null, '', '#s' + (actual + 1)); } catch (e) { /* sin historial en algunos visores */ }
+	}
+
+	function ir(n) {
+		if (n < 0 || n >= total || n === actual) return;
+		const sale = slides[actual];
+		const entra = slides[n];
+		const adelante = n > actual;
+		sale.classList.remove('active');
+		sale.classList.add(adelante ? 'out-left' : 'out-right');
+		entra.classList.remove('out-left', 'out-right');
+		entra.classList.add(adelante ? 'will-enter-right' : 'will-enter-left');
+		void entra.offsetWidth;
+		requestAnimationFrame(() => requestAnimationFrame(() => {
+			entra.classList.remove('will-enter-right', 'will-enter-left');
+			entra.classList.add('active');
+		}));
+		setTimeout(() => sale.classList.remove('out-left', 'out-right'), 450);
+		actual = n;
+		actualizarEstado();
+	}
+
+	function alternarNotas(forzar) {
+		const panel = $('notas');
+		const abrir = typeof forzar === 'boolean' ? forzar : panel.hidden;
+		panel.hidden = !abrir;
+		$('btn-notas').setAttribute('aria-expanded', String(abrir));
+	}
+	function alternarGuion(forzar) {
+		const g = $('guion');
+		const abrir = typeof forzar === 'boolean' ? forzar : g.hidden;
+		g.hidden = !abrir;
+		$('btn-guion').setAttribute('aria-expanded', String(abrir));
+		if (abrir) { $('btn-cerrar').focus(); try { history.replaceState(null, '', '#guion'); } catch (e) {} }
+		else { $('btn-guion').focus(); actualizarEstado(); }
+	}
+
+	function iniciar() {
+		pintarGuion();
+		$('btn-ant').addEventListener('click', () => ir(actual - 1));
+		$('btn-sig').addEventListener('click', () => ir(actual + 1));
+		$('btn-notas').addEventListener('click', () => alternarNotas());
+		$('btn-guion').addEventListener('click', () => alternarGuion(true));
+		$('btn-cerrar').addEventListener('click', () => alternarGuion(false));
+		$('btn-pantalla').addEventListener('click', () => {
+			const el = document.documentElement;
+			if (document.fullscreenElement) { document.exitFullscreen && document.exitFullscreen().catch(() => {}); return; }
+			if (el.requestFullscreen) el.requestFullscreen().catch(() => avisar('Este visor no permite pantalla completa; usen F11 en el navegador.'));
+			else avisar('Este visor no permite pantalla completa; usen F11 en el navegador.');
+		});
+		$('btn-copiar').addEventListener('click', () => {
+			const texto = textoPlano();
+			const respaldo = () => {
+				$('respaldo').value = texto;
+				$('respaldo-wrap').hidden = false;
+				$('respaldo').focus();
+				$('respaldo').select();
+				avisar('Seleccionado: copien con Ctrl+C');
+			};
+			try {
+				if (navigator.clipboard && navigator.clipboard.writeText) {
+					navigator.clipboard.writeText(texto).then(() => avisar('Guion copiado'), respaldo);
+				} else respaldo();
+			} catch (e) { respaldo(); }
+		});
+
+		document.addEventListener('keydown', (e) => {
+			if (e.altKey || e.ctrlKey || e.metaKey) return;
+			const guionAbierto = !$('guion').hidden;
+			if (e.key === 'Escape') { if (guionAbierto) alternarGuion(false); else alternarNotas(false); return; }
+			if (guionAbierto) return;
+			if (e.target && (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT')) return;
+			if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); ir(actual + 1); }
+			else if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); ir(actual - 1); }
+			else if (e.key === 'Home') ir(0);
+			else if (e.key === 'End') ir(total - 1);
+			else if (e.key === 'n' || e.key === 'N') alternarNotas();
+			else if (e.key === 'g' || e.key === 'G') alternarGuion(true);
+		});
+
+		const hash = (location.hash || '').slice(1);
+		if (hash === 'guion') alternarGuion(true);
+		const m = /^s([1-9])$/.exec(hash);
+		actualizarEstado();
+		if (m) ir(Math.min(total, Number(m[1])) - 1);
+	}
+
+	if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
+	else iniciar();
+})();
+</script>

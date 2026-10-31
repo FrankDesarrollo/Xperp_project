@@ -50,6 +50,13 @@
 		resize: vertical;
 	}
 
+	@media (pointer: coarse) {
+		.field :global(input),
+		.field :global(select) {
+			min-height: 2.75rem;
+		}
+	}
+
 	.hint {
 		color: var(--color-text-muted);
 		font-size: var(--text-xs);

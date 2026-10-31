@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import LoadState from '$lib/components/ui/LoadState.svelte';
+	import { Loader } from '$lib/utils/loader.svelte';
 	import { page } from '$app/state';
 	import { Plus, Trash2 } from '@lucide/svelte';
 	import { api, unwrap, ApiError } from '$lib/api/client';
@@ -39,7 +41,20 @@
 		lines: [{ product_id: '', quantity: 1 }]
 	});
 
-	async function load() {
+	const loader = new Loader();
+
+	/** Toda carga pasa por el Loader: cargando, error con salida o datos. */
+	function load() {
+		return loader.run(fetchOrders);
+	}
+
+	/** Primera carga y «Reintentar»: también las bodegas del filtro, por si fueron ellas las que fallaron. */
+	async function fetchAll() {
+		warehouses = await unwrap(api.GET('/warehouses'));
+		await fetchOrders();
+	}
+
+	async function fetchOrders() {
 		const status = tab === 'held' ? 'on_hold' : filters.status || undefined;
 		const res = await unwrap(
 			api.GET('/sales-orders', {
@@ -132,12 +147,11 @@
 	}
 
 	onMount(() => {
-		void (async () => {
-			warehouses = await unwrap(api.GET('/warehouses'));
-			await load();
+		void loader.run(async () => {
+			await fetchAll();
 			const id = Number(page.url.searchParams.get('id'));
 			if (id) void open(id);
-		})();
+		});
 		let timer: ReturnType<typeof setTimeout> | null = null;
 		const off = live.on('sale.created', () => {
 			if (timer || pageNo !== 1) return;
@@ -198,49 +212,51 @@
 	</form>
 {/if}
 
-<div class="table-wrap">
-	<table class="data">
-		<thead>
-			<tr>
-				<th>Pedido</th>
-				<th>Fecha</th>
-				<th>Cliente</th>
-				<th>Ciudad</th>
-				<th>Bodega</th>
-				<th>Estado</th>
-				<th class="num">Líneas</th>
-				<th class="num">Total</th>
-			</tr>
-		</thead>
-		<tbody>
-			{#each orders as o (o.id)}
-				<tr
-					class="clickable"
-					tabindex="0"
-					onclick={() => open(o.id)}
-					onkeydown={(e) => e.key === 'Enter' && open(o.id)}
-				>
-					<td class="mono">{o.number}</td>
-					<td>{formatDateTime(o.ordered_at)}</td>
-					<td>{o.customer_name}</td>
-					<td>{o.customer_city}</td>
-					<td>{o.warehouse_code}</td>
-					<td>
-						<StatusBadge map={SALES_STATUS} value={o.status} />
-						{#if o.hold_reason && o.status === 'on_hold'}<div class="small text-muted">
-								{o.hold_reason}
-							</div>{/if}
-					</td>
-					<td class="num">{o.item_count}</td>
-					<td class="num">{formatCop(o.total)}</td>
+<LoadState {loader} what="los pedidos" onretry={() => loader.run(fetchAll)}>
+	<div class="table-wrap">
+		<table class="data">
+			<thead>
+				<tr>
+					<th>Pedido</th>
+					<th>Fecha</th>
+					<th>Cliente</th>
+					<th>Ciudad</th>
+					<th>Bodega</th>
+					<th>Estado</th>
+					<th class="num">Líneas</th>
+					<th class="num">Total</th>
 				</tr>
-			{:else}
-				<tr><td colspan="8" class="text-muted">No hay pedidos con estos filtros.</td></tr>
-			{/each}
-		</tbody>
-	</table>
-</div>
-<Pagination page={pageNo} size={SIZE} {total} onchange={(p) => ((pageNo = p), load())} />
+			</thead>
+			<tbody>
+				{#each orders as o (o.id)}
+					<tr
+						class="clickable"
+						tabindex="0"
+						onclick={() => open(o.id)}
+						onkeydown={(e) => e.key === 'Enter' && open(o.id)}
+					>
+						<td class="mono">{o.number}</td>
+						<td>{formatDateTime(o.ordered_at)}</td>
+						<td>{o.customer_name}</td>
+						<td>{o.customer_city}</td>
+						<td>{o.warehouse_code}</td>
+						<td>
+							<StatusBadge map={SALES_STATUS} value={o.status} />
+							{#if o.hold_reason && o.status === 'on_hold'}<div class="small text-muted">
+									{o.hold_reason}
+								</div>{/if}
+						</td>
+						<td class="num">{o.item_count}</td>
+						<td class="num">{formatCop(o.total)}</td>
+					</tr>
+				{:else}
+					<tr><td colspan="8" class="text-muted">No hay pedidos con estos filtros.</td></tr>
+				{/each}
+			</tbody>
+		</table>
+	</div>
+	<Pagination page={pageNo} size={SIZE} {total} onchange={(p) => ((pageNo = p), load())} />
+</LoadState>
 
 <Drawer
 	open={selected !== null}

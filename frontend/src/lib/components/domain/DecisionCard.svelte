@@ -193,6 +193,14 @@
 		flex-wrap: wrap;
 	}
 
+	@media (pointer: coarse) {
+		.refs a {
+			display: inline-flex;
+			align-items: center;
+			min-height: 2.75rem;
+		}
+	}
+
 	section {
 		display: grid;
 		gap: var(--space-2);

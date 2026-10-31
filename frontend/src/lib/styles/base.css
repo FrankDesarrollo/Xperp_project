@@ -67,3 +67,33 @@ textarea {
 		animation-duration: 0ms !important;
 	}
 }
+
+/*
+ * En pantallas táctiles cada control mide al menos 44 px de alto, para tocarlo sin
+ * acertarle al borde. Una casilla se toca por su etiqueta, que es la que crece.
+ */
+@media (pointer: coarse) {
+	button,
+	select,
+	textarea,
+	input:not([type='checkbox'], [type='radio']),
+	label:has(> input[type='checkbox'], > input[type='radio']),
+	table a[href],
+	a.small {
+		min-height: 2.75rem;
+	}
+
+	label:has(> input[type='checkbox'], > input[type='radio']),
+	table a[href],
+	a.small {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+
+	input[type='checkbox'],
+	input[type='radio'] {
+		width: 1.25rem;
+		height: 1.25rem;
+	}
+}

@@ -142,3 +142,18 @@ export function label<T extends { label: string }>(
 ): T {
 	return (key && map[key]) || ({ label: key ?? '—', tone: 'neutral' } as unknown as T);
 }
+
+/** Qué recomienda la IA para una existencia (GET /ai/recommendations). */
+export const RECOMMENDATION_KIND: Record<string, { label: string; tone: Tone }> = {
+	buy: { label: 'Comprar', tone: 'warning' },
+	transfer: { label: 'Trasladar', tone: 'info' },
+	incoming: { label: 'OC en camino', tone: 'info' },
+	pending_approval: { label: 'Por aprobar', tone: 'warning' },
+	excess: { label: 'Exceso', tone: 'neutral' }
+};
+
+export const RECOMMENDATION_PRIORITY: Record<string, { label: string; tone: Tone }> = {
+	high: { label: 'Urgente', tone: 'danger' },
+	medium: { label: 'Reponer', tone: 'warning' },
+	low: { label: 'Para revisar', tone: 'neutral' }
+};

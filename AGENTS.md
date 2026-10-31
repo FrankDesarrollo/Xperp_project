@@ -246,13 +246,13 @@ Vive en `backend/src/main/resources/demo/scenarios.yml` y lo ejecuta el módulo 
 |---|---|---|
 | 1 | Aceite 1 L y leche UHT en CAL-01 arrancan bajos | El ciclo diario genera OC; la leche va a PRV-03 por tiempo de entrega |
 | 1 | Pañales en 0 en BOG-01 y con 40 días en CAL-01 | Propone traslado en vez de comprar; pide aprobación |
+| 1 | Papel higiénico en CAL-01 por debajo del punto de reorden | OC a PRV-06 |
 | 2 | Festivo | Baja la demanda; no hay compras de pánico |
-| 3 | Papel higiénico en CAL-01 con 4 días | OC a PRV-06 |
 | 5 | PRV-06 reporta retraso de 4 días | Reasigna a PRV-09 y explica el sobrecosto |
 | 6 | PRV-02 rechaza una OC de arroz por falta de stock | Reasigna a PRV-01 |
 | 10 | PRV-01 sube el café 18 % | Alerta de precio; vuelve a calificar proveedores para ese SKU |
 | 15 | Quincena | Pico de demanda; el pronóstico lo absorbe |
-| 15 | Conteo de detergente en CAL-01: kardex 1.260, físico 1.170 | Alerta de discrepancia, ajuste pendiente de aprobación y tarea de reconteo |
+| 15 | Conteo de detergente en CAL-01: el físico da 7 % menos que el kardex (1.170 por cada 1.260) | Alerta de discrepancia, ajuste pendiente de aprobación y tarea de reconteo |
 | 16 | Festivo | |
 | 20 | Un mayorista pide 10 veces su volumen normal de azúcar | Anomalía de venta: retiene el pedido para revisión antes de tratarlo como demanda real |
 | 22 en adelante | CPE pasa el 85 % del presupuesto | Prioriza por margen y días de cobertura; las OC restantes quedan para aprobación |
@@ -298,9 +298,11 @@ Con la misma semilla, la carga da siempre el mismo resultado. `POST /api/v1/simu
 | Módulos | Spring Modulith: límites entre módulos verificados en pruebas y eventos persistidos |
 | IA | Spring AI: `ChatClient`, tool calling con `@Tool`, proveedor configurable (Anthropic, OpenAI u Ollama) |
 | Persistencia | Spring Data JPA (Hibernate 6), PostgreSQL 16, Flyway |
+| Código repetitivo | Lombok, solo para getters y setters de las entidades JPA (13.1) |
 | Multiempresa | Columna `company_id` con `@TenantId` de Hibernate; la empresa se toma del JWT |
 | Seguridad | Spring Security, JWT firmado con HS256, roles |
 | Contratos | OpenAPI 3.1 escrito a mano; `openapi-generator-maven-plugin` genera las interfaces de los controllers |
+| Documentación de la API | springdoc-openapi: Swagger UI en `/swagger-ui.html` (sección 15) |
 | Tiempo real | Server-Sent Events (SSE) |
 | Tareas programadas | `@Scheduled` atado al reloj simulado |
 | Estadística | Apache Commons Math 3; Holt-Winters implementado en el proyecto |
@@ -463,7 +465,7 @@ backend/
     │       ├── application.yml
     │       ├── application-dev.yml
     │       ├── application-demo.yml
-    │       ├── db/migration/        # V1__platform.sql, V2__catalog.sql, V3__inventory.sql, ...
+    │       ├── db/migration/        # V1__platform.sql, V100__catalog.sql, V500__notifications.sql, ... (bloques en 12.2)
     │       ├── demo/                # datos de la sección 2.14
     │       └── prompts/             # replenishment.v1.st, po-exception.v1.st, anomaly.v1.st, daily-summary.v1.st
     └── test/java/com/xperp/
@@ -665,7 +667,7 @@ Disponible = `on_hand - reserved`. En tránsito se calcula con las OC y traslado
 | purchasing | `GET /suppliers`, `GET /suppliers/{id}/offers`, `GET POST /purchase-orders`, `GET /purchase-orders/{id}`, `POST /purchase-orders/{id}/send`, `POST /purchase-orders/{id}/cancel`, `GET /purchase-orders/{id}/pdf` |
 | logistics | `GET /warehouse-tasks?assigned_to=me&status`, `POST /warehouse-tasks/{id}/start`, `POST /warehouse-tasks/{id}/complete`, `GET /carriers`, `GET /shipments`, `GET /shipments/{id}/label` |
 | finance | `GET /budgets?period`, `GET /accounts-payable` |
-| ai | `GET /ai/decisions`, `GET /ai/decisions/{id}`, `POST /ai/decisions/{id}/revert`, `GET /approvals?status`, `POST /approvals/{id}/approve`, `POST /approvals/{id}/reject`, `GET PUT /ai/policies`, `GET PUT /ai/settings` |
+| ai | `GET /ai/decisions`, `GET /ai/decisions/{id}`, `POST /ai/decisions/{id}/revert`, `GET /approvals?status`, `POST /approvals/{id}/approve`, `POST /approvals/{id}/reject`, `GET PUT /ai/policies`, `GET PUT /ai/settings`, `GET /ai/recommendations?warehouse_id&product_id` |
 | assistant | `POST /assistant/messages`, `GET /assistant/conversations/{id}` |
 | dashboard | `GET /dashboard/kpis?from&to&warehouse_id`, `GET /dashboard/series?metric&from&to` |
 | notifications | `GET /notifications`, `POST /notifications/{id}/read`, `GET /stream` (SSE) |
@@ -793,6 +795,7 @@ Las tools de lectura devuelven datos. Las de escritura no ejecutan nada por su c
 | `get_customer_history(customer_id, sku)` | lectura |
 | `quote_carriers(sales_order_id)` | lectura |
 | `query_kpis(metric, from, to, warehouse)` | lectura |
+| `list_recommendations(sku, warehouse)` | lectura |
 | `create_purchase_order(supplier, warehouse, items, reason)` | escritura |
 | `reassign_purchase_order(po_number, new_supplier, reason)` | escritura |
 | `cancel_purchase_order(po_number, reason)` | escritura |
@@ -821,7 +824,11 @@ Las tools de lectura devuelven datos. Las de escritura no ejecutan nada por su c
 
 ### 8.9 Asistente
 
-Responde preguntas como "¿qué se agota esta semana?", "¿por qué se le compró a Mayorista Central?" o "¿cuánto llevamos gastado en aseo?". Solo usa tools de lectura y nunca genera SQL.
+Responde preguntas como "¿qué se agota esta semana?", "¿qué me recomiendas reponer?", "¿hay exceso de inventario?", "¿por qué se le compró a Mayorista Central?" o "¿cuánto llevamos gastado en aseo?". Solo usa tools de lectura y nunca genera SQL. Se abre desde cualquier pantalla con el botón «Preguntar a la IA», y la conversación es la misma que en la pantalla Asistente.
+
+### 8.10 Recomendaciones de inventario
+
+`GET /ai/recommendations` dice qué haría hoy el ciclo de reabastecimiento con cada existencia que necesita atención, y por qué: comprar (al proveedor con mejor puntaje y en la cantidad de `ReorderRules`), trasladar (si es urgente y otra bodega tiene más de 30 días), esperar la OC en camino, revisar una propuesta que espera aprobación, o no reponer por exceso. Usa las mismas reglas que el agente (`StockAdvice`, `ReorderRules`, `SupplierScorer`, el pronóstico y el plan de traslado), no ejecuta nada, no escribe en `ai_decisions` y no llama al LLM. No anticipa la consolidación por proveedor ni la priorización por presupuesto, que dependen del plan completo del día. Se ven en Inventario → Recomendaciones de la IA, en el detalle de cada existencia y, las urgentes, en el Tablero.
 
 ---
 
@@ -900,8 +907,8 @@ Ventas del día y del mes, margen bruto, nivel de servicio (unidades despachadas
 
 | Pantalla | Contenido | Roles |
 |---|---|---|
-| Tablero | KPIs, ventas en vivo, inventario por estado, últimas decisiones de la IA, alertas | todos |
-| Inventario | Lista con semáforo (quiebre, bajo, normal, exceso), filtros, detalle con kardex y pronóstico | todos |
+| Tablero | KPIs, recomendaciones urgentes de la IA, ventas en vivo, inventario por estado, últimas decisiones de la IA, alertas | todos |
+| Inventario | Lista con semáforo (quiebre, bajo, normal, exceso), filtros, recomendaciones de la IA, detalle con recomendación, kardex y pronóstico | todos |
 | Ventas | Pedidos, estados, pedidos retenidos para revisión | manager, admin, viewer |
 | Compras | OC por estado, línea de tiempo de cada OC, proveedores, ofertas y precios | purchasing, manager, admin |
 | Bodega | Tareas asignadas al usuario, botones grandes de iniciar y terminar, pensada para celular | warehouse |
@@ -909,7 +916,7 @@ Ventas del día y del mes, margen bruto, nivel de servicio (unidades despachadas
 | IA → Decisiones | Bitácora con datos de entrada, alternativas, razonamiento, resultado de la política y reversión | todos (revertir: manager, admin) |
 | IA → Aprobaciones | Bandeja por rol con el razonamiento de la IA y botones de aprobar o rechazar con comentario | purchasing, manager |
 | IA → Políticas | Niveles por acción, umbrales, presupuestos, pesos del puntaje, kill switch, modo sombra | admin |
-| Asistente | Chat de solo lectura | todos |
+| Asistente | Chat de solo lectura; también se abre como panel desde cualquier pantalla | todos |
 | Simulación | Reloj, iniciar, pausar, velocidad, reiniciar, progreso del guion | admin |
 
 ### 11.2 Diseño
@@ -920,6 +927,8 @@ Ventas del día y del mes, margen bruto, nivel de servicio (unidades despachadas
 - La barra superior muestra siempre la fecha y hora simuladas y si la IA está activa, en modo sombra o detenida.
 - Cada decisión de la IA se muestra con la misma tarjeta en todas las pantallas (`DecisionCard`).
 - Montos en formato `$ 1.250.000`; fechas en `dd/mm/aaaa hh:mm`.
+- Cada vista con datos tiene sus estados: cargando, vacía (con qué hacer), con error (con «Reintentar») y con datos (`Loader` y `LoadState`). Una recarga que falla no borra lo que ya se ve.
+- Una sección que el rol no puede ver muestra «sin acceso» en vez de una pantalla rota.
 
 ---
 
@@ -995,9 +1004,10 @@ Plantilla de PR (`.github/pull_request_template.md`):
 
 | Workflow | Se ejecuta si cambian | Pasos |
 |---|---|---|
-| `contracts.yml` | `contracts/**` | Lint del OpenAPI con Redocly y bundle |
+| `contracts.yml` | `contracts/**` | Lint con Redocly de `openapi.yaml` y `partners.yaml` (los dos de `redocly.yaml`) y bundle |
 | `backend.yml` | `backend/**`, `contracts/**` | `./mvnw -B verify`: compila contra el contrato, Spotless, pruebas unitarias, de integración con Testcontainers y `ModularityTest` |
 | `frontend.yml` | `frontend/**`, `contracts/**` | `npm ci`, `gen:api`, `svelte-check`, ESLint, Vitest, build |
+| `partners-mock.yml` | `partners-mock/**`, `contracts/partners.yaml` | `./mvnw -B verify` de partners-mock |
 
 ### 12.5 Definición de terminado
 

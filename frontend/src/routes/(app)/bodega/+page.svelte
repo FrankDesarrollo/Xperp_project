@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import LoadState from '$lib/components/ui/LoadState.svelte';
+	import { Loader } from '$lib/utils/loader.svelte';
 	import { api, unwrap, ApiError } from '$lib/api/client';
 	import type { Warehouse, WarehouseTask } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
@@ -28,7 +30,20 @@
 
 	let isKeeper = $derived(auth.hasRole('warehouse'));
 
-	async function load() {
+	const loader = new Loader();
+
+	/** Toda carga pasa por el Loader: cargando, error con salida o datos. */
+	function load() {
+		return loader.run(fetchTasks);
+	}
+
+	/** Primera carga y «Reintentar»: también las bodegas del filtro, por si fueron ellas las que fallaron. */
+	async function fetchAll() {
+		warehouses = await unwrap(api.GET('/warehouses'));
+		await fetchTasks();
+	}
+
+	async function fetchTasks() {
 		const res = await unwrap(
 			api.GET('/warehouse-tasks', {
 				params: {
@@ -99,10 +114,7 @@
 	}
 
 	onMount(() => {
-		void (async () => {
-			warehouses = await unwrap(api.GET('/warehouses'));
-			await load();
-		})();
+		void loader.run(fetchAll);
 		let timer: ReturnType<typeof setTimeout> | null = null;
 		const refresh = () => {
 			if (timer) return;
@@ -162,24 +174,26 @@
 	{/if}
 </div>
 
-{#if tasks.length === 0}
-	<EmptyState
-		title={tab === 'open' ? 'No hay tareas pendientes' : 'Todavía no hay tareas terminadas'}
-	>
-		Las tareas las crea la IA cuando entra un pedido, llega mercancía o hay un conteo o traslado.
-	</EmptyState>
-{:else}
-	<div class="tasks">
-		{#each tasks as t (t.id)}
-			<TaskCard
-				task={t}
-				busy={busyId === t.id}
-				onstart={tab === 'open' ? start : undefined}
-				oncomplete={tab === 'open' ? askComplete : undefined}
-			/>
-		{/each}
-	</div>
-{/if}
+<LoadState {loader} what="las tareas" onretry={() => loader.run(fetchAll)}>
+	{#if tasks.length === 0}
+		<EmptyState
+			title={tab === 'open' ? 'No hay tareas pendientes' : 'Todavía no hay tareas terminadas'}
+		>
+			Las tareas las crea la IA cuando entra un pedido, llega mercancía o hay un conteo o traslado.
+		</EmptyState>
+	{:else}
+		<div class="tasks">
+			{#each tasks as t (t.id)}
+				<TaskCard
+					task={t}
+					busy={busyId === t.id}
+					onstart={tab === 'open' ? start : undefined}
+					oncomplete={tab === 'open' ? askComplete : undefined}
+				/>
+			{/each}
+		</div>
+	{/if}
+</LoadState>
 
 <Modal
 	open={completing !== null}

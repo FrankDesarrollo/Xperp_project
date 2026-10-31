@@ -41,7 +41,7 @@ class TransferAgent {
   }
 
   /** Bodega que puede ceder el SKU: más de 30 días de cobertura. */
-  InventoryRow donor(List<InventoryRow> rows, InventoryRow target) {
+  static InventoryRow donor(List<InventoryRow> rows, InventoryRow target) {
     for (InventoryRow r : rows) {
       if (r.stock().productId() != target.stock().productId()
           || r.stock().warehouseId() == target.stock().warehouseId()) {
@@ -55,8 +55,19 @@ class TransferAgent {
     return null;
   }
 
-  boolean propose(InventoryRow target, InventoryRow donor, LocalDate today, String triggerEvent) {
-    ProductDto p = catalog.product(target.stock().productId());
+  /** Cuánto trasladar y con qué pronóstico se calculó. */
+  record Plan(int quantity, int horizon, double forecast) {}
+
+  /**
+   * Lo que cubre el horizonte en destino (traslado + cobertura objetivo + stock de seguridad), en
+   * cajas, sin dejar al origen con menos de 20 días. Una cantidad de 0 o menos: no hay traslado.
+   */
+  static Plan plan(
+      ForecastService forecasts,
+      InventoryRow target,
+      InventoryRow donor,
+      ProductDto p,
+      LocalDate today) {
     int horizon = TRANSFER_DAYS + target.stock().coverDays();
     Double fc = forecasts.sum(p.id(), target.stock().warehouseId(), today, horizon);
     double daily = target.stock().avgDailyDemand().doubleValue();
@@ -66,10 +77,20 @@ class TransferAgent {
     double donorDaily = donor.stock().avgDailyDemand().doubleValue();
     int maxGive = donor.stock().available() - (int) Math.ceil(donorDaily * DONOR_KEEP_DAYS);
     maxGive = (maxGive / p.unitsPerCase()) * p.unitsPerCase();
-    qty = Math.min(qty, maxGive);
+    return new Plan(Math.min(qty, maxGive), horizon, forecast);
+  }
+
+  boolean propose(InventoryRow target, InventoryRow donor, LocalDate today, String triggerEvent) {
+    ProductDto p = catalog.product(target.stock().productId());
+    Plan plan = plan(forecasts, target, donor, p, today);
+    int qty = plan.quantity();
+    int horizon = plan.horizon();
+    double forecast = plan.forecast();
+    double daily = target.stock().avgDailyDemand().doubleValue();
     if (qty <= 0) {
       return false;
     }
+    double donorDaily = donor.stock().avgDailyDemand().doubleValue();
     double donorAfter =
         donorDaily <= 0 ? Double.POSITIVE_INFINITY : (donor.stock().available() - qty) / donorDaily;
 

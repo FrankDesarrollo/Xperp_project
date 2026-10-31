@@ -307,3 +307,64 @@ ForecastSeries:
       type: array
       items:
         $ref: "#/SeriesPoint"
+
+StockRecommendation:
+  type: object
+  required: [product_id, sku, product_name, warehouse_id, warehouse_code, status, kind, priority, available, in_transit, reorder_point, title, reason]
+  properties:
+    product_id:
+      type: integer
+      format: int64
+    sku:
+      type: string
+    product_name:
+      type: string
+    warehouse_id:
+      type: integer
+      format: int64
+    warehouse_code:
+      type: string
+    status:
+      type: string
+      description: "Semáforo de la existencia: stockout, low, ok, over"
+    kind:
+      type: string
+      description: "buy (comprar), transfer (trasladar desde otra bodega), incoming (ya viene una OC), pending_approval (la IA ya lo propuso y espera aprobación), excess (exceso: no reponer)"
+    priority:
+      type: string
+      description: "high (quiebre o menos de 2 días de cobertura), medium, low"
+    quantity:
+      type: [integer, "null"]
+      description: Unidades a comprar o trasladar; en exceso, unidades por encima del tope
+    days_of_cover:
+      type: [number, "null"]
+      format: double
+      description: Días que alcanza el disponible con la demanda promedio; null si no hay demanda
+    available:
+      type: integer
+    in_transit:
+      type: integer
+    reorder_point:
+      type: integer
+    supplier_code:
+      type: [string, "null"]
+    supplier_name:
+      type: [string, "null"]
+    lead_time_days:
+      type: [integer, "null"]
+    amount:
+      type: [string, "null"]
+      description: Valor estimado de la compra (string decimal)
+    source_warehouse_code:
+      type: [string, "null"]
+      description: Bodega de origen del traslado
+    expected_at:
+      type: [string, "null"]
+      format: date-time
+      description: Llegada esperada de la OC en camino
+    title:
+      type: string
+      description: La acción en una línea, por ejemplo «Comprar 864 und a Lácteos La Pradera»
+    reason:
+      type: string
+      description: Por qué, con los datos que vio la IA

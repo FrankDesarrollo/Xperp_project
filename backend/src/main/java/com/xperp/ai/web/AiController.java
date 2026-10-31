@@ -1,5 +1,6 @@
 package com.xperp.ai.web;
 
+import com.xperp.ai.agent.StockAdvisor;
 import com.xperp.ai.api.AiProperties;
 import com.xperp.ai.decisions.AiDecision;
 import com.xperp.ai.decisions.AiDecisionRef;
@@ -24,6 +25,7 @@ import com.xperp.shared.contract.model.ForecastSeries;
 import com.xperp.shared.contract.model.ReasonRequest;
 import com.xperp.shared.contract.model.ScoringWeights;
 import com.xperp.shared.contract.model.SeriesPoint;
+import com.xperp.shared.contract.model.StockRecommendation;
 import com.xperp.shared.error.BusinessException;
 import com.xperp.shared.persistence.Money;
 import com.xperp.shared.persistence.PageResult;
@@ -36,6 +38,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.http.ResponseEntity;
@@ -52,6 +55,7 @@ class AiController implements AiApi {
   private final PolicyAdminService policies;
   private final AlertService alerts;
   private final ForecastService forecasts;
+  private final StockAdvisor advisor;
   private final UserDirectory users;
   private final AiProperties properties;
   private final Clock clock;
@@ -64,6 +68,7 @@ class AiController implements AiApi {
       PolicyAdminService policies,
       AlertService alerts,
       ForecastService forecasts,
+      StockAdvisor advisor,
       UserDirectory users,
       AiProperties properties,
       Clock clock) {
@@ -74,6 +79,7 @@ class AiController implements AiApi {
     this.policies = policies;
     this.alerts = alerts;
     this.forecasts = forecasts;
+    this.advisor = advisor;
     this.users = users;
     this.properties = properties;
     this.clock = clock;
@@ -246,6 +252,40 @@ class AiController implements AiApi {
     return ResponseEntity.ok(
         new ForecastSeries(
             productId, warehouseId, s.model(), points(s.history()), points(s.forecast())));
+  }
+
+  @Override
+  public ResponseEntity<List<StockRecommendation>> listStockRecommendations(
+      Long warehouseId, Long productId) {
+    return ResponseEntity.ok(
+        advisor.recommendations(warehouseId, productId).stream()
+            .map(AiController::toModel)
+            .toList());
+  }
+
+  private static StockRecommendation toModel(StockAdvisor.Advice a) {
+    return new StockRecommendation(
+            a.row().stock().productId(),
+            a.row().sku(),
+            a.row().productName(),
+            a.row().stock().warehouseId(),
+            a.row().warehouseCode(),
+            a.row().status(),
+            a.kind().name().toLowerCase(Locale.ROOT),
+            a.priority().name().toLowerCase(Locale.ROOT),
+            a.row().stock().available(),
+            a.row().inTransit(),
+            a.row().stock().reorderPoint(),
+            a.title(),
+            a.reason())
+        .quantity(a.quantity())
+        .daysOfCover(a.daysOfCover())
+        .supplierCode(a.supplierCode())
+        .supplierName(a.supplierName())
+        .leadTimeDays(a.leadTimeDays())
+        .amount(a.amount() == null ? null : Money.format(a.amount()))
+        .sourceWarehouseCode(a.sourceWarehouseCode())
+        .expectedAt(a.expectedAt() == null ? null : SimTime.toOffset(a.expectedAt()));
   }
 
   private static List<SeriesPoint> points(Map<LocalDate, Double> values) {
