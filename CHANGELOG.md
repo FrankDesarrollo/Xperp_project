@@ -49,6 +49,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 ### Corregido
 
+- **[partners]** Un retraso al azar de un proveedor ya no se adelanta al retraso del guion: si el guion tiene uno programado para ese proveedor antes de la entrega, manda el guion. En el ensayo, el retraso de PRV-06 del día 5 no encontraba ninguna OC, porque una demora al azar del día 4 ya la había reasignado.
+- **[simulation]** El guion y la tabla 2.13 decían que la OC de papel higiénico sale el día 3; desde el ADR 0003 sale el día 1. El conteo de detergente ya no anuncia cantidades fijas (1.260 y 1.170) que no coinciden con las que muestra la pantalla.
 - **[ai]** El resumen diario contaba 0 pedidos; ahora usa la serie de pedidos del día. Se corrigió la redacción "1 días" en las justificaciones.
 - **[ai]** Una OC rechazada se reasignaba siempre al proveedor de emergencia; ahora el peso de urgencia depende de la cobertura real y se respeta el proveedor preferido.
 - **[ai]** Se evitan guías duplicadas cuando el listener y el reintento horario compiten por el mismo pedido.

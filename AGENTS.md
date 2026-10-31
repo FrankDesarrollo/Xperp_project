@@ -246,13 +246,13 @@ Vive en `backend/src/main/resources/demo/scenarios.yml` y lo ejecuta el módulo 
 |---|---|---|
 | 1 | Aceite 1 L y leche UHT en CAL-01 arrancan bajos | El ciclo diario genera OC; la leche va a PRV-03 por tiempo de entrega |
 | 1 | Pañales en 0 en BOG-01 y con 40 días en CAL-01 | Propone traslado en vez de comprar; pide aprobación |
+| 1 | Papel higiénico en CAL-01 por debajo del punto de reorden | OC a PRV-06 |
 | 2 | Festivo | Baja la demanda; no hay compras de pánico |
-| 3 | Papel higiénico en CAL-01 con 4 días | OC a PRV-06 |
 | 5 | PRV-06 reporta retraso de 4 días | Reasigna a PRV-09 y explica el sobrecosto |
 | 6 | PRV-02 rechaza una OC de arroz por falta de stock | Reasigna a PRV-01 |
 | 10 | PRV-01 sube el café 18 % | Alerta de precio; vuelve a calificar proveedores para ese SKU |
 | 15 | Quincena | Pico de demanda; el pronóstico lo absorbe |
-| 15 | Conteo de detergente en CAL-01: kardex 1.260, físico 1.170 | Alerta de discrepancia, ajuste pendiente de aprobación y tarea de reconteo |
+| 15 | Conteo de detergente en CAL-01: el físico da 7 % menos que el kardex (1.170 por cada 1.260) | Alerta de discrepancia, ajuste pendiente de aprobación y tarea de reconteo |
 | 16 | Festivo | |
 | 20 | Un mayorista pide 10 veces su volumen normal de azúcar | Anomalía de venta: retiene el pedido para revisión antes de tratarlo como demanda real |
 | 22 en adelante | CPE pasa el 85 % del presupuesto | Prioriza por margen y días de cobertura; las OC restantes quedan para aprobación |

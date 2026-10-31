@@ -25,10 +25,10 @@ scenarios:
     title: Festivo
     expected: Baja la demanda; no hay compras de pánico
 
-  - day: 3
+  - day: 1
     time: "06:00"
     type: observe
-    title: Papel higiénico en CAL-01 con pocos días de cobertura
+    title: Papel higiénico en CAL-01 por debajo del punto de reorden
     expected: OC a PRV-06
 
   - day: 5
@@ -59,7 +59,7 @@ scenarios:
   - day: 15
     time: "10:00"
     type: inventory_count
-    title: "Conteo de detergente en CAL-01: kardex 1.260, físico 1.170"
+    title: "Conteo de detergente en CAL-01: el físico da 7 % menos que el kardex"
     expected: Alerta de discrepancia, ajuste pendiente de aprobación y tarea de reconteo
     params: { sku: ASE-001, warehouse: CAL-01, ratio: 0.9286 }
 
