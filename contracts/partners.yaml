@@ -141,6 +141,8 @@ paths:
       responses:
         "204":
           description: Reiniciado
+        "401":
+          $ref: "#/components/responses/Error"
 
   /admin/scenarios:
     post:
@@ -159,6 +161,8 @@ paths:
       responses:
         "204":
           description: Guion configurado
+        "401":
+          $ref: "#/components/responses/Error"
 
   /admin/queue:
     get:
@@ -176,6 +180,8 @@ paths:
                 properties:
                   pending_webhooks:
                     type: integer
+        "401":
+          $ref: "#/components/responses/Error"
 
 components:
   securitySchemes:

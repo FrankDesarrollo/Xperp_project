@@ -49,6 +49,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 ### Corregido
 
+- **[contracts]** Las rutas `/admin/*` de `partners.yaml` declaran el 401 que partners-mock ya devuelve sin token. El lint de contratos estaba en rojo en `main` desde el PR #18.
 - **[ai]** El resumen diario contaba 0 pedidos; ahora usa la serie de pedidos del día. Se corrigió la redacción "1 días" en las justificaciones.
 - **[ai]** Una OC rechazada se reasignaba siempre al proveedor de emergencia; ahora el peso de urgencia depende de la cobertura real y se respeta el proveedor preferido.
 - **[ai]** Se evitan guías duplicadas cuando el listener y el reintento horario compiten por el mismo pedido.
