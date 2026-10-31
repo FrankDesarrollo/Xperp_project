@@ -40,6 +40,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 - **[backend]** Pruebas unitarias de reglas, Holt-Winters, puntajes, políticas, anomalías y planificador de pedidos, más `DemoFlowIT` con Testcontainers (35 + 1).
 - **[frontend]** Pruebas de formato y del parser SSE con Vitest, y prueba e2e con Playwright sobre MSW (login y tablero).
 
+- **[partners]** Pruebas con WireMock del cliente HTTP hacia partners-mock: qué envía (token, cuerpo de la OC, cotización y envío), qué lee (catálogo con precio exacto y vigencia) y cómo falla (401, conexión cortada, 422 sin cobertura frente a 500, reinicio que no tumba la simulación).
+
 ### Cambiado
 
 - **[repo]** `README.md` ahora explica cómo levantar el proyecto, los comandos de calidad y el flujo de trabajo.
