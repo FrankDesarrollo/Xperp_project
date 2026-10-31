@@ -29,6 +29,12 @@
 		return loader.run(fetchShipments);
 	}
 
+	/** Primera carga y «Reintentar»: también las transportadoras del filtro, por si fueron ellas las que fallaron. */
+	async function fetchAll() {
+		carriers = await unwrap(api.GET('/carriers'));
+		await fetchShipments();
+	}
+
 	async function fetchShipments() {
 		const res = await unwrap(
 			api.GET('/shipments', {
@@ -47,10 +53,7 @@
 	}
 
 	onMount(() => {
-		void loader.run(async () => {
-			carriers = await unwrap(api.GET('/carriers'));
-			await fetchShipments();
-		});
+		void loader.run(fetchAll);
 		let timer: ReturnType<typeof setTimeout> | null = null;
 		const off = live.on('shipment.changed', () => {
 			if (timer || pageNo !== 1) return;
@@ -111,7 +114,7 @@
 	</Field>
 </div>
 
-<LoadState {loader} what="los envíos" onretry={load}>
+<LoadState {loader} what="los envíos" onretry={() => loader.run(fetchAll)}>
 	<div class="table-wrap">
 		<table class="data">
 			<thead>

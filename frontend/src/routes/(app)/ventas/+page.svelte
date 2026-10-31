@@ -48,6 +48,12 @@
 		return loader.run(fetchOrders);
 	}
 
+	/** Primera carga y «Reintentar»: también las bodegas del filtro, por si fueron ellas las que fallaron. */
+	async function fetchAll() {
+		warehouses = await unwrap(api.GET('/warehouses'));
+		await fetchOrders();
+	}
+
 	async function fetchOrders() {
 		const status = tab === 'held' ? 'on_hold' : filters.status || undefined;
 		const res = await unwrap(
@@ -142,8 +148,7 @@
 
 	onMount(() => {
 		void loader.run(async () => {
-			warehouses = await unwrap(api.GET('/warehouses'));
-			await fetchOrders();
+			await fetchAll();
 			const id = Number(page.url.searchParams.get('id'));
 			if (id) void open(id);
 		});
@@ -207,7 +212,7 @@
 	</form>
 {/if}
 
-<LoadState {loader} what="los pedidos" onretry={load}>
+<LoadState {loader} what="los pedidos" onretry={() => loader.run(fetchAll)}>
 	<div class="table-wrap">
 		<table class="data">
 			<thead>

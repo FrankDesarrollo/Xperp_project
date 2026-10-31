@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import LoadState from '$lib/components/ui/LoadState.svelte';
 	import { Loader } from '$lib/utils/loader.svelte';
 	import { page } from '$app/state';
@@ -76,6 +76,22 @@
 		return loader.run(fetchOrders);
 	}
 
+	/** Primera carga y «Reintentar»: también proveedores y bodegas, por si fueron ellos los que fallaron. */
+	async function fetchAll() {
+		[suppliers, warehouses] = await Promise.all([
+			unwrap(api.GET('/suppliers')),
+			unwrap(api.GET('/warehouses'))
+		]);
+		await fetchOrders();
+	}
+
+	/** La pestaña de presupuesto carga aparte, con su propio estado de carga y error. */
+	const financeLoader = new Loader();
+
+	function loadFinance() {
+		return financeLoader.run(fetchFinance);
+	}
+
 	async function fetchOrders() {
 		const res = await unwrap(
 			api.GET('/purchase-orders', {
@@ -128,7 +144,7 @@
 		);
 	}
 
-	async function loadFinance() {
+	async function fetchFinance() {
 		budgets = await unwrap(api.GET('/budgets'));
 		payables = (await unwrap(api.GET('/accounts-payable', { params: { query: { size: 50 } } })))
 			.items;
@@ -174,11 +190,7 @@
 
 	onMount(() => {
 		void loader.run(async () => {
-			[suppliers, warehouses] = await Promise.all([
-				unwrap(api.GET('/suppliers')),
-				unwrap(api.GET('/warehouses'))
-			]);
-			await fetchOrders();
+			await fetchAll();
 			const id = Number(page.url.searchParams.get('oc') ?? page.url.searchParams.get('id'));
 			if (id) void open(id);
 		});
@@ -189,7 +201,8 @@
 	});
 
 	$effect(() => {
-		if (tab === 'budget') void loadFinance();
+		// untrack: el Loader lee su propio estado y no debe volver a disparar este efecto.
+		if (tab === 'budget') untrack(() => void loadFinance());
 	});
 
 	function eventTone(s: string): Tone {
@@ -244,7 +257,7 @@
 	onchange={(id) => (tab = id)}
 />
 
-<LoadState {loader} what="las órdenes de compra" onretry={load}>
+<LoadState {loader} what="las órdenes de compra" onretry={() => loader.run(fetchAll)}>
 	{#if tab === 'orders'}
 		<div class="filters">
 			<Field label="Estado">
@@ -330,79 +343,85 @@
 			</table>
 		</div>
 	{:else}
-		<div class="grid-2">
-			<div class="card">
-				<h2>Uso del presupuesto</h2>
-				<EChart
-					label="Uso del presupuesto por categoría"
-					height="220px"
-					option={(t) =>
-						barOption(
-							t,
-							budgets.map((b) => ({
-								label: b.category_name,
-								value: b.usage_pct,
-								tone: b.usage_pct > 85 ? 'danger' : b.usage_pct > 70 ? 'warning' : undefined
-							})),
-							(v) => formatPct(v),
-							Math.max(100, ...budgets.map((b) => b.usage_pct))
-						)}
-				/>
+		<LoadState
+			loader={financeLoader}
+			what="el presupuesto y las cuentas por pagar"
+			onretry={loadFinance}
+		>
+			<div class="grid-2">
+				<div class="card">
+					<h2>Uso del presupuesto</h2>
+					<EChart
+						label="Uso del presupuesto por categoría"
+						height="220px"
+						option={(t) =>
+							barOption(
+								t,
+								budgets.map((b) => ({
+									label: b.category_name,
+									value: b.usage_pct,
+									tone: b.usage_pct > 85 ? 'danger' : b.usage_pct > 70 ? 'warning' : undefined
+								})),
+								(v) => formatPct(v),
+								Math.max(100, ...budgets.map((b) => b.usage_pct))
+							)}
+					/>
+				</div>
+				<div class="table-wrap">
+					<table class="data">
+						<thead
+							><tr
+								><th>Categoría</th><th class="num">Presupuesto</th><th class="num">Comprometido</th
+								><th class="num">Gastado</th><th class="num">Disponible</th></tr
+							></thead
+						>
+						<tbody>
+							{#each budgets as b (b.id)}
+								<tr>
+									<td>{b.category_name} <span class="text-muted small">{b.period}</span></td>
+									<td class="num">{formatCop(b.amount)}</td>
+									<td class="num">{formatCop(b.committed)}</td>
+									<td class="num">{formatCop(b.spent)}</td>
+									<td class="num" class:neg={Number(b.available) < 0}>{formatCop(b.available)}</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
 			</div>
+			<h2 class="section-title">Cuentas por pagar</h2>
 			<div class="table-wrap">
 				<table class="data">
 					<thead
 						><tr
-							><th>Categoría</th><th class="num">Presupuesto</th><th class="num">Comprometido</th
-							><th class="num">Gastado</th><th class="num">Disponible</th></tr
+							><th>OC</th><th>Proveedor</th><th>Vence</th><th>Estado</th><th class="num">Monto</th
+							></tr
 						></thead
 					>
 					<tbody>
-						{#each budgets as b (b.id)}
+						{#each payables as p (p.id)}
 							<tr>
-								<td>{b.category_name} <span class="text-muted small">{b.period}</span></td>
-								<td class="num">{formatCop(b.amount)}</td>
-								<td class="num">{formatCop(b.committed)}</td>
-								<td class="num">{formatCop(b.spent)}</td>
-								<td class="num" class:neg={Number(b.available) < 0}>{formatCop(b.available)}</td>
+								<td class="mono">{p.purchase_order_number}</td>
+								<td>{p.supplier_name}</td>
+								<td>{formatDate(p.due_date)}</td>
+								<td
+									><Badge tone={p.status === 'paid' ? 'success' : 'warning'}
+										>{p.status === 'paid' ? 'Pagada' : 'Abierta'}</Badge
+									></td
+								>
+								<td class="num">{formatCop(p.amount)}</td>
 							</tr>
+						{:else}
+							<tr
+								><td colspan="5" class="text-muted"
+									>Aún no hay cuentas por pagar (se crean al recibir la mercancía).</td
+								></tr
+							>
 						{/each}
 					</tbody>
 				</table>
 			</div>
-		</div>
-		<h2 class="section-title">Cuentas por pagar</h2>
-		<div class="table-wrap">
-			<table class="data">
-				<thead
-					><tr
-						><th>OC</th><th>Proveedor</th><th>Vence</th><th>Estado</th><th class="num">Monto</th
-						></tr
-					></thead
-				>
-				<tbody>
-					{#each payables as p (p.id)}
-						<tr>
-							<td class="mono">{p.purchase_order_number}</td>
-							<td>{p.supplier_name}</td>
-							<td>{formatDate(p.due_date)}</td>
-							<td
-								><Badge tone={p.status === 'paid' ? 'success' : 'warning'}
-									>{p.status === 'paid' ? 'Pagada' : 'Abierta'}</Badge
-								></td
-							>
-							<td class="num">{formatCop(p.amount)}</td>
-						</tr>
-					{:else}
-						<tr
-							><td colspan="5" class="text-muted"
-								>Aún no hay cuentas por pagar (se crean al recibir la mercancía).</td
-							></tr
-						>
-					{/each}
-				</tbody>
-			</table>
-		</div>
+		</LoadState>
 	{/if}
 </LoadState>
 

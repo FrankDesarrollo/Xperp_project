@@ -37,6 +37,12 @@
 		return loader.run(fetchTasks);
 	}
 
+	/** Primera carga y «Reintentar»: también las bodegas del filtro, por si fueron ellas las que fallaron. */
+	async function fetchAll() {
+		warehouses = await unwrap(api.GET('/warehouses'));
+		await fetchTasks();
+	}
+
 	async function fetchTasks() {
 		const res = await unwrap(
 			api.GET('/warehouse-tasks', {
@@ -108,10 +114,7 @@
 	}
 
 	onMount(() => {
-		void loader.run(async () => {
-			warehouses = await unwrap(api.GET('/warehouses'));
-			await fetchTasks();
-		});
+		void loader.run(fetchAll);
 		let timer: ReturnType<typeof setTimeout> | null = null;
 		const refresh = () => {
 			if (timer) return;
@@ -171,7 +174,7 @@
 	{/if}
 </div>
 
-<LoadState {loader} what="las tareas" onretry={load}>
+<LoadState {loader} what="las tareas" onretry={() => loader.run(fetchAll)}>
 	{#if tasks.length === 0}
 		<EmptyState
 			title={tab === 'open' ? 'No hay tareas pendientes' : 'Todavía no hay tareas terminadas'}
