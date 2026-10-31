@@ -298,9 +298,11 @@ Con la misma semilla, la carga da siempre el mismo resultado. `POST /api/v1/simu
 | Módulos | Spring Modulith: límites entre módulos verificados en pruebas y eventos persistidos |
 | IA | Spring AI: `ChatClient`, tool calling con `@Tool`, proveedor configurable (Anthropic, OpenAI u Ollama) |
 | Persistencia | Spring Data JPA (Hibernate 6), PostgreSQL 16, Flyway |
+| Código repetitivo | Lombok, solo para getters y setters de las entidades JPA (13.1) |
 | Multiempresa | Columna `company_id` con `@TenantId` de Hibernate; la empresa se toma del JWT |
 | Seguridad | Spring Security, JWT firmado con HS256, roles |
 | Contratos | OpenAPI 3.1 escrito a mano; `openapi-generator-maven-plugin` genera las interfaces de los controllers |
+| Documentación de la API | springdoc-openapi: Swagger UI en `/swagger-ui.html` (sección 15) |
 | Tiempo real | Server-Sent Events (SSE) |
 | Tareas programadas | `@Scheduled` atado al reloj simulado |
 | Estadística | Apache Commons Math 3; Holt-Winters implementado en el proyecto |
@@ -463,7 +465,7 @@ backend/
     │       ├── application.yml
     │       ├── application-dev.yml
     │       ├── application-demo.yml
-    │       ├── db/migration/        # V1__platform.sql, V2__catalog.sql, V3__inventory.sql, ...
+    │       ├── db/migration/        # V1__platform.sql, V100__catalog.sql, V500__notifications.sql, ... (bloques en 12.2)
     │       ├── demo/                # datos de la sección 2.14
     │       └── prompts/             # replenishment.v1.st, po-exception.v1.st, anomaly.v1.st, daily-summary.v1.st
     └── test/java/com/xperp/
@@ -995,9 +997,10 @@ Plantilla de PR (`.github/pull_request_template.md`):
 
 | Workflow | Se ejecuta si cambian | Pasos |
 |---|---|---|
-| `contracts.yml` | `contracts/**` | Lint del OpenAPI con Redocly y bundle |
+| `contracts.yml` | `contracts/**` | Lint con Redocly de `openapi.yaml` y `partners.yaml` (los dos de `redocly.yaml`) y bundle |
 | `backend.yml` | `backend/**`, `contracts/**` | `./mvnw -B verify`: compila contra el contrato, Spotless, pruebas unitarias, de integración con Testcontainers y `ModularityTest` |
 | `frontend.yml` | `frontend/**`, `contracts/**` | `npm ci`, `gen:api`, `svelte-check`, ESLint, Vitest, build |
+| `partners-mock.yml` | `partners-mock/**`, `contracts/partners.yaml` | `./mvnw -B verify` de partners-mock |
 
 ### 12.5 Definición de terminado
 

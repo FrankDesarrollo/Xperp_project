@@ -42,6 +42,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 ### Cambiado
 
+- **[repo]** `AGENTS.md` ya no contradice al ADR 0002: el ejemplo de migraciones de 5.1 sigue los bloques de 12.2, la tabla 3.1 incluye Lombok y springdoc, y 12.4 lista `partners-mock.yml`.
+- **[repo]** `CODEOWNERS` usa los usuarios reales (@FrankDesarrollo para A y @erickcolin2005 para B) en vez de los marcadores, que GitHub ignoraba.
 - **[repo]** `README.md` ahora explica cómo levantar el proyecto, los comandos de calidad y el flujo de trabajo.
 - **[contracts]** `events.md` con los campos reales de cada evento de dominio y SSE; `partners.yaml` con los endpoints `/admin` de partners-mock.
 - **[docs]** ADR [0003](docs/decisions/0003-desviaciones-de-la-implementacion.md): desviaciones de la implementación respecto a `AGENTS.md` (punto de reorden con día de revisión, eventos de webhooks, llamadas de la simulación a la IA, SPI entre módulos, SQL del tablero, multiempresa en webhooks).
