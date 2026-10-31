@@ -272,12 +272,14 @@
 										: '—'}</td
 								>
 								<td
-									><input
-										type="checkbox"
-										bind:checked={p.is_enabled}
-										onchange={() => (dirty = true)}
-										aria-label="Activa"
-									/></td
+									><label
+										><input
+											type="checkbox"
+											bind:checked={p.is_enabled}
+											onchange={() => (dirty = true)}
+											aria-label="Activa"
+										/></label
+									></td
 								>
 							</tr>
 						{/each}
