@@ -246,13 +246,13 @@ Vive en `backend/src/main/resources/demo/scenarios.yml` y lo ejecuta el módulo 
 |---|---|---|
 | 1 | Aceite 1 L y leche UHT en CAL-01 arrancan bajos | El ciclo diario genera OC; la leche va a PRV-03 por tiempo de entrega |
 | 1 | Pañales en 0 en BOG-01 y con 40 días en CAL-01 | Propone traslado en vez de comprar; pide aprobación |
+| 1 | Papel higiénico en CAL-01 por debajo del punto de reorden | OC a PRV-06 |
 | 2 | Festivo | Baja la demanda; no hay compras de pánico |
-| 3 | Papel higiénico en CAL-01 con 4 días | OC a PRV-06 |
 | 5 | PRV-06 reporta retraso de 4 días | Reasigna a PRV-09 y explica el sobrecosto |
 | 6 | PRV-02 rechaza una OC de arroz por falta de stock | Reasigna a PRV-01 |
 | 10 | PRV-01 sube el café 18 % | Alerta de precio; vuelve a calificar proveedores para ese SKU |
 | 15 | Quincena | Pico de demanda; el pronóstico lo absorbe |
-| 15 | Conteo de detergente en CAL-01: kardex 1.260, físico 1.170 | Alerta de discrepancia, ajuste pendiente de aprobación y tarea de reconteo |
+| 15 | Conteo de detergente en CAL-01: el físico da 7 % menos que el kardex (1.170 por cada 1.260) | Alerta de discrepancia, ajuste pendiente de aprobación y tarea de reconteo |
 | 16 | Festivo | |
 | 20 | Un mayorista pide 10 veces su volumen normal de azúcar | Anomalía de venta: retiene el pedido para revisión antes de tratarlo como demanda real |
 | 22 en adelante | CPE pasa el 85 % del presupuesto | Prioriza por margen y días de cobertura; las OC restantes quedan para aprobación |
@@ -298,9 +298,11 @@ Con la misma semilla, la carga da siempre el mismo resultado. `POST /api/v1/simu
 | Módulos | Spring Modulith: límites entre módulos verificados en pruebas y eventos persistidos |
 | IA | Spring AI: `ChatClient`, tool calling con `@Tool`, proveedor configurable (Anthropic, OpenAI u Ollama) |
 | Persistencia | Spring Data JPA (Hibernate 6), PostgreSQL 16, Flyway |
+| Código repetitivo | Lombok, solo para getters y setters de las entidades JPA (13.1) |
 | Multiempresa | Columna `company_id` con `@TenantId` de Hibernate; la empresa se toma del JWT |
 | Seguridad | Spring Security, JWT firmado con HS256, roles |
 | Contratos | OpenAPI 3.1 escrito a mano; `openapi-generator-maven-plugin` genera las interfaces de los controllers |
+| Documentación de la API | springdoc-openapi: Swagger UI en `/swagger-ui.html` (sección 15) |
 | Tiempo real | Server-Sent Events (SSE) |
 | Tareas programadas | `@Scheduled` atado al reloj simulado |
 | Estadística | Apache Commons Math 3; Holt-Winters implementado en el proyecto |
@@ -463,7 +465,7 @@ backend/
     │       ├── application.yml
     │       ├── application-dev.yml
     │       ├── application-demo.yml
-    │       ├── db/migration/        # V1__platform.sql, V2__catalog.sql, V3__inventory.sql, ...
+    │       ├── db/migration/        # V1__platform.sql, V100__catalog.sql, V500__notifications.sql, ... (bloques en 12.2)
     │       ├── demo/                # datos de la sección 2.14
     │       └── prompts/             # replenishment.v1.st, po-exception.v1.st, anomaly.v1.st, daily-summary.v1.st
     └── test/java/com/xperp/
@@ -1002,9 +1004,10 @@ Plantilla de PR (`.github/pull_request_template.md`):
 
 | Workflow | Se ejecuta si cambian | Pasos |
 |---|---|---|
-| `contracts.yml` | `contracts/**` | Lint del OpenAPI con Redocly y bundle |
+| `contracts.yml` | `contracts/**` | Lint con Redocly de `openapi.yaml` y `partners.yaml` (los dos de `redocly.yaml`) y bundle |
 | `backend.yml` | `backend/**`, `contracts/**` | `./mvnw -B verify`: compila contra el contrato, Spotless, pruebas unitarias, de integración con Testcontainers y `ModularityTest` |
 | `frontend.yml` | `frontend/**`, `contracts/**` | `npm ci`, `gen:api`, `svelte-check`, ESLint, Vitest, build |
+| `partners-mock.yml` | `partners-mock/**`, `contracts/partners.yaml` | `./mvnw -B verify` de partners-mock |
 
 ### 12.5 Definición de terminado
 

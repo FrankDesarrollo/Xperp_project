@@ -17,6 +17,8 @@ Con `SIM_AUTO_APPROVE=false` (el valor por defecto), las OC de $ 5.000.000 o má
 
 Para ensayar el mes completo sin personas, se levanta el backend con `SIM_AUTO_APPROVE=true`. En el ensayo del 2026-10-23 con semilla 42, el mes cerró con un nivel de servicio del 99,8 %, 0 SKU en quiebre, una ejecución de presupuesto del 77,2 % y un sobrecosto por reasignaciones de $ 7,7 M.
 
+En el ensayo del 2026-10-30, también con semilla 42 y en modo `mock`, se revisaron en la base de datos los 14 escenarios de la tabla 2.13, y se cumplen todos. El mes cerró con un nivel de servicio del 99,7 %, una ejecución de presupuesto del 77,5 %, 314 unidades perdidas y un sobrecosto por reasignaciones de $ 7,2 M. Falta el ensayo con un LLM real, que necesita una llave de API.
+
 ## Guion
 
 | Minuto | Qué se muestra | Escenario (tabla 2.13) | Pantalla |
@@ -26,7 +28,7 @@ Para ensayar el mes completo sin personas, se levanta el backend con `SIM_AUTO_A
 | 2–3 | Abrir la decisión de la leche: qué datos vio, las alternativas con su puntaje, por qué eligió esa y el resultado de la política. Mostrar el correo con el PDF en Mailpit. | Día 1 | IA → Decisiones, Mailpit |
 | 3–4 | Pañales en 0 en BOG-01: la IA propone un traslado desde CAL-01 en vez de comprar. Gerencia lo aprueba. | Día 1, pañales | IA → Aprobaciones (gerencia) |
 | 4–5 | El bodeguero inicia y termina una tarea desde el celular. El pedido queda empacado y la IA elige transportadora y genera la guía. | Flujo de despacho | Bodega (celular), Despachos |
-| 5–6 | Pausar y avanzar hasta el día 5: PRV-06 retrasa el papel higiénico 4 días. La IA reasigna a PRV-09 y explica el sobrecosto. Compras la aprueba. | Días 3 y 5 | Compras, IA → Aprobaciones |
+| 5–6 | Pausar y avanzar hasta el día 5: PRV-06 retrasa el papel higiénico 4 días. La IA reasigna a PRV-09 y explica el sobrecosto. Compras la aprueba. | Días 1 y 5 | Compras, IA → Aprobaciones |
 | 6–7 | Avanzar al día 6: PRV-02 rechaza el arroz y la IA reasigna a PRV-01 sin pedir aprobación (sobrecosto ≤ 10 %). Al día 10, alerta por el alza del café y nueva calificación de proveedores. | Días 6 y 10 | IA → Decisiones, Tablero (alertas) |
 | 7–8 | Avanzar al día 15: quincena (pico de ventas) y discrepancia en el conteo del detergente. Se ven la alerta, la tarea de reconteo y el ajuste pendiente de gerencia. | Día 15 | Inventario (kardex), IA → Aprobaciones |
 | 8–9 | Avanzar al día 20: el pedido anómalo de azúcar queda retenido; se libera desde Ventas. Al día 22, el presupuesto de CPE pasa el 85 % y la IA prioriza por margen y cobertura. Caramelos: promoción sugerida y recompra bloqueada. | Días 20 y 22, todo el mes | Ventas, Tablero (presupuesto), Inventario |

@@ -79,6 +79,16 @@ public class ScenarioStore {
     return due;
   }
 
+  /** ¿Hay un retraso del guion para el proveedor, todavía sin aplicar, antes de {@code until}? */
+  public synchronized boolean delayPendingBefore(String supplier, Instant until) {
+    return delays.stream()
+        .anyMatch(
+            d ->
+                d.supplier().equals(supplier)
+                    && !appliedDelays.contains(d)
+                    && d.at().isBefore(until));
+  }
+
   /** Consume el rechazo forzado si la orden lo cumple (una sola vez). */
   public synchronized Optional<Reject> takeReject(String supplier, List<String> skus, Instant now) {
     for (Reject r : rejects) {

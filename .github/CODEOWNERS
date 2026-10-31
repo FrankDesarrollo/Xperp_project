@@ -1,24 +1,23 @@
 # Propiedad de módulos. Referencia: AGENTS.md, sección 12.1.
-# PENDIENTE: confirmar quién es el integrante A (dominio e IA) y quién el B
-# (experiencia, simulación e integración), y reemplazar USUARIO_A y USUARIO_B
-# por los usuarios de GitHub. Mientras tengan estos marcadores, GitHub ignora las líneas.
+# Integrante A (dominio e IA): @FrankDesarrollo. Integrante B (experiencia, simulación
+# e integración): @erickcolin2005. Es el mismo reparto de las etiquetas owner: de los issues.
 
-/backend/src/main/java/com/xperp/catalog/        @USUARIO_A
-/backend/src/main/java/com/xperp/inventory/      @USUARIO_A
-/backend/src/main/java/com/xperp/sales/          @USUARIO_A
-/backend/src/main/java/com/xperp/purchasing/     @USUARIO_A
-/backend/src/main/java/com/xperp/logistics/      @USUARIO_A
-/backend/src/main/java/com/xperp/finance/        @USUARIO_A
-/backend/src/main/java/com/xperp/ai/             @USUARIO_A
-/backend/src/main/java/com/xperp/simulation/     @USUARIO_B
-/backend/src/main/java/com/xperp/partners/       @USUARIO_B
-/backend/src/main/java/com/xperp/notifications/  @USUARIO_B
-/backend/src/main/java/com/xperp/dashboard/      @USUARIO_B
-/backend/src/main/resources/demo/                @USUARIO_B
-/partners-mock/                                  @USUARIO_B
-/frontend/                                       @USUARIO_B
-/backend/src/main/java/com/xperp/shared/         @USUARIO_A @USUARIO_B
-/contracts/                                      @USUARIO_A @USUARIO_B
-/AGENTS.md                                       @USUARIO_A @USUARIO_B
-/docker-compose.yml                              @USUARIO_A @USUARIO_B
-/.github/                                        @USUARIO_A @USUARIO_B
+/backend/src/main/java/com/xperp/catalog/        @FrankDesarrollo
+/backend/src/main/java/com/xperp/inventory/      @FrankDesarrollo
+/backend/src/main/java/com/xperp/sales/          @FrankDesarrollo
+/backend/src/main/java/com/xperp/purchasing/     @FrankDesarrollo
+/backend/src/main/java/com/xperp/logistics/      @FrankDesarrollo
+/backend/src/main/java/com/xperp/finance/        @FrankDesarrollo
+/backend/src/main/java/com/xperp/ai/             @FrankDesarrollo
+/backend/src/main/java/com/xperp/simulation/     @erickcolin2005
+/backend/src/main/java/com/xperp/partners/       @erickcolin2005
+/backend/src/main/java/com/xperp/notifications/  @erickcolin2005
+/backend/src/main/java/com/xperp/dashboard/      @erickcolin2005
+/backend/src/main/resources/demo/                @erickcolin2005
+/partners-mock/                                  @erickcolin2005
+/frontend/                                       @erickcolin2005
+/backend/src/main/java/com/xperp/shared/         @FrankDesarrollo @erickcolin2005
+/contracts/                                      @FrankDesarrollo @erickcolin2005
+/AGENTS.md                                       @FrankDesarrollo @erickcolin2005
+/docker-compose.yml                              @FrankDesarrollo @erickcolin2005
+/.github/                                        @FrankDesarrollo @erickcolin2005

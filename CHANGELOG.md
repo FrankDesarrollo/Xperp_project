@@ -46,12 +46,15 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 - **[frontend]** El asistente se abre desde cualquier pantalla con el botón «Preguntar a la IA»; la conversación es la misma que en la pantalla Asistente.
 - **[frontend]** Estados de carga y de error con «Reintentar» en las 12 pantallas (`Loader` y `LoadState`), y «sin acceso» cuando el rol no puede ver una sección.
 - **[frontend]** Mocks de MSW para recomendaciones, asistente, bodegas y categorías; pruebas de `Loader`, `LoadState` y permisos, y dos recorridos e2e (recomendaciones y asistente).
+- **[partners]** Pruebas con WireMock del cliente HTTP hacia partners-mock: qué envía (token, cuerpo de la OC, cotización y envío), qué lee (catálogo con precio exacto y vigencia) y cómo falla (401, conexión cortada, 422 sin cobertura frente a 500, reinicio que no tumba la simulación).
 
 ### Cambiado
 
 - **[ai]** `TransferAgent.donor` y el cálculo de la cantidad a trasladar (`TransferAgent.plan`) son estáticos y los comparten el agente y las recomendaciones; el agente usa `StockAdvice.urgent` para decidir si traslada.
 - **[frontend]** Menú móvil con fondo, cierre con Escape y oculto para el teclado cuando está cerrado; el panel de notificaciones se cierra con Escape o al tocar fuera; el `Drawer` mueve el foco al abrirse y lo devuelve al cerrarse; en pantallas táctiles todo control mide al menos 44 px (botones, campos, pestañas, enlaces de tabla y la etiqueta de cada casilla).
 - **[frontend]** Si el servidor no responde al entrar, la aplicación ofrece «Reintentar» en vez de quedarse en el mensaje.
+- **[repo]** `AGENTS.md` ya no contradice al ADR 0002: el ejemplo de migraciones de 5.1 sigue los bloques de 12.2, la tabla 3.1 incluye Lombok y springdoc, y 12.4 lista `partners-mock.yml`.
+- **[repo]** `CODEOWNERS` usa los usuarios reales (@FrankDesarrollo para A y @erickcolin2005 para B) en vez de los marcadores, que GitHub ignoraba.
 - **[repo]** `README.md` ahora explica cómo levantar el proyecto, los comandos de calidad y el flujo de trabajo.
 - **[contracts]** `events.md` con los campos reales de cada evento de dominio y SSE; `partners.yaml` con los endpoints `/admin` de partners-mock.
 - **[docs]** ADR [0003](docs/decisions/0003-desviaciones-de-la-implementacion.md): desviaciones de la implementación respecto a `AGENTS.md` (punto de reorden con día de revisión, eventos de webhooks, llamadas de la simulación a la IA, SPI entre módulos, SQL del tablero, multiempresa en webhooks).
@@ -59,10 +62,13 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 ### Corregido
 
+- **[contracts]** Las rutas `/admin/*` de `partners.yaml` declaran el 401 que partners-mock ya devuelve sin token. El lint de contratos estaba en rojo en `main` desde el PR #18.
 - **[ai]** El asistente sin LLM respondía con las ventas cualquier pregunta sobre inventario, porque «inventario» contiene «venta»; ahora las palabras clave se buscan al comienzo de una palabra.
 - **[frontend]** Si una carga fallaba, las pantallas se quedaban en «Cargando…» o mostraban «no hay datos» como si estuvieran vacías.
 - **[frontend]** «Reintentar» en Ventas, Compras, Bodega y Despachos solo volvía a pedir la lista: si lo que había fallado eran las bodegas, las transportadoras o los proveedores, el filtro quedaba vacío. Y la pestaña de presupuesto de Compras no avisaba cuando su carga fallaba.
 - **[frontend]** En la tabla de Inventario, el SKU y la bodega ya no se parten en dos líneas.
+- **[partners]** Un retraso al azar de un proveedor ya no se adelanta al retraso del guion: si el guion tiene uno programado para ese proveedor antes de la entrega, manda el guion. En el ensayo, el retraso de PRV-06 del día 5 no encontraba ninguna OC, porque una demora al azar del día 4 ya la había reasignado.
+- **[simulation]** El guion y la tabla 2.13 decían que la OC de papel higiénico sale el día 3; desde el ADR 0003 sale el día 1. El conteo de detergente ya no anuncia cantidades fijas (1.260 y 1.170) que no coinciden con las que muestra la pantalla.
 - **[ai]** El resumen diario contaba 0 pedidos; ahora usa la serie de pedidos del día. Se corrigió la redacción "1 días" en las justificaciones.
 - **[ai]** Una OC rechazada se reasignaba siempre al proveedor de emergencia; ahora el peso de urgencia depende de la cobertura real y se respeta el proveedor preferido.
 - **[ai]** Se evitan guías duplicadas cuando el listener y el reintento horario compiten por el mismo pedido.
