@@ -67,6 +67,22 @@ Con `LLM_PROVIDER=mock` (el valor por defecto) la demo funciona completa sin cla
 
 El detalle de cada carpeta está en la sección 5 de `AGENTS.md`.
 
+## Por qué cada lenguaje
+
+| Lenguaje | Dónde | Por qué |
+|---|---|---|
+| **Java 21** | `backend/` y `partners-mock/` | Es una versión con soporte largo (LTS). Con Spring, el negocio y la IA viven en el mismo programa: Spring AI le da herramientas al modelo de lenguaje con una anotación (`@Tool`) y permite cambiar de proveedor (Anthropic, OpenAI u Ollama) sin tocar el código de los agentes. Spring Modulith hace fallar una prueba si un módulo usa piezas internas de otro, así cada integrante responde por lo suyo. El dinero se calcula con `BigDecimal`, sin errores de redondeo, y las existencias, el presupuesto y las OC se bloquean mientras se modifican para que dos procesos no vendan ni gasten lo mismo. |
+| **SQL** (PostgreSQL 16) | `backend/src/main/resources/db/migration/` | Un ERP necesita que cada operación quede completa o no quede: si algo falla a mitad, nada cambia. Flyway aplica las migraciones en orden y cada módulo tiene su bloque de números (V100, V110…). En columnas `jsonb` se guarda lo que la IA vio y las alternativas que tuvo en cada decisión, sin una tabla por tipo de decisión. Las cifras del tablero salen de consultas SQL directas. |
+| **TypeScript** (modo estricto) | `frontend/` | Los tipos de la API se generan del contrato (`npm run gen:api`): si el backend cambia un campo, el frontend deja de compilar en vez de fallar frente al usuario. |
+| **Svelte 5** con SvelteKit 2 | `frontend/src/` | Las pantallas se compilan a archivos estáticos que sirve nginx, sin un servidor de Node aparte (`adapter-static` y `ssr = false`). El estado compartido (sesión, reloj simulado, asistente) usa las runes de Svelte, sin otra librería. |
+| **CSS** | `frontend/src/lib/styles/` y cada componente | CSS nativo: variables (tokens) para el tema claro y el oscuro, y estilos encerrados en cada componente. Sin Tailwind. |
+| **YAML** (OpenAPI 3.1) | `contracts/` | El contrato se escribe primero y manda: el backend genera de él las interfaces de sus controladores y no compila si se aparta, y el frontend trabaja con datos de prueba (MSW) antes de que exista el endpoint. YAML también configura Spring (`application.yml`), Docker Compose y GitHub Actions. |
+| **Plantillas de prompt** (`.st`) | `backend/src/main/resources/prompts/` | Las instrucciones para el modelo de lenguaje están separadas del código Java y llevan su versión en el nombre (`replenishment.v1.st`). Cada decisión guarda en `ai_decisions.prompt_version` qué versión la produjo. |
+
+**¿Y Python?** No se usa. El pronóstico de demanda (Holt-Winters con estacionalidad semanal) y las reglas de reorden están escritos en Java, así no hay que montar ni mantener un servicio aparte en Python.
+
+Las versiones exactas están en el [ADR 0001](docs/decisions/0001-stack.md), y la tabla completa del stack, en la sección 3 de `AGENTS.md`.
+
 ## Comandos de calidad
 
 | Proyecto | Comando | Qué hace |
