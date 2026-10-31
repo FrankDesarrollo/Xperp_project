@@ -50,7 +50,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 ### Cambiado
 
 - **[ai]** `TransferAgent.donor` y el cálculo de la cantidad a trasladar (`TransferAgent.plan`) son estáticos y los comparten el agente y las recomendaciones; el agente usa `StockAdvice.urgent` para decidir si traslada.
-- **[frontend]** Menú móvil con fondo, cierre con Escape y oculto para el teclado cuando está cerrado; el panel de notificaciones se cierra con Escape o al tocar fuera; el `Drawer` mueve el foco al abrirse y lo devuelve al cerrarse; botones de icono de 44 px en pantallas táctiles.
+- **[frontend]** Menú móvil con fondo, cierre con Escape y oculto para el teclado cuando está cerrado; el panel de notificaciones se cierra con Escape o al tocar fuera; el `Drawer` mueve el foco al abrirse y lo devuelve al cerrarse; en pantallas táctiles todo control mide al menos 44 px (botones, campos, pestañas, enlaces de tabla y la etiqueta de cada casilla).
 - **[frontend]** Si el servidor no responde al entrar, la aplicación ofrece «Reintentar» en vez de quedarse en el mensaje.
 - **[repo]** `README.md` ahora explica cómo levantar el proyecto, los comandos de calidad y el flujo de trabajo.
 - **[contracts]** `events.md` con los campos reales de cada evento de dominio y SSE; `partners.yaml` con los endpoints `/admin` de partners-mock.
@@ -61,6 +61,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 - **[ai]** El asistente sin LLM respondía con las ventas cualquier pregunta sobre inventario, porque «inventario» contiene «venta»; ahora las palabras clave se buscan al comienzo de una palabra.
 - **[frontend]** Si una carga fallaba, las pantallas se quedaban en «Cargando…» o mostraban «no hay datos» como si estuvieran vacías.
+- **[frontend]** «Reintentar» en Ventas, Compras, Bodega y Despachos solo volvía a pedir la lista: si lo que había fallado eran las bodegas, las transportadoras o los proveedores, el filtro quedaba vacío. Y la pestaña de presupuesto de Compras no avisaba cuando su carga fallaba.
 - **[frontend]** En la tabla de Inventario, el SKU y la bodega ya no se parten en dos líneas.
 - **[ai]** El resumen diario contaba 0 pedidos; ahora usa la serie de pedidos del día. Se corrigió la redacción "1 días" en las justificaciones.
 - **[ai]** Una OC rechazada se reasignaba siempre al proveedor de emergencia; ahora el peso de urgencia depende de la cobertura real y se respeta el proveedor preferido.
