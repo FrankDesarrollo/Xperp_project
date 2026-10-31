@@ -119,9 +119,13 @@ public class SupplierService {
     if (rng.nextDouble() < behavior.delayProbability()) {
       Instant delayAt = confirmAt.plus(Duration.ofHours(Math.max(2, leadTime * 12L)));
       int extra = between(behavior.delayDays(), rng);
-      order.expectedAt = order.expectedAt.plus(Duration.ofDays(extra));
-      order.reason = "Demoras en el despacho";
-      schedule(order, delayAt, "delayed");
+      // El guion manda: si ya tiene programado un retraso de este proveedor antes de la entrega,
+      // no se suma otro al azar, que reasignaría la OC antes y dejaría al guion sin orden.
+      if (!scenarios.delayPendingBefore(code, order.expectedAt)) {
+        order.expectedAt = order.expectedAt.plus(Duration.ofDays(extra));
+        order.reason = "Demoras en el despacho";
+        schedule(order, delayAt, "delayed");
+      }
     }
     if (rng.nextDouble() < behavior.partialProbability()) {
       Map<String, Integer> shipped = new LinkedHashMap<>();
