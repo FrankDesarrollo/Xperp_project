@@ -47,8 +47,13 @@ public class DecisionRecorder {
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public long create(ActionProposal p, PolicyEngine.PolicyDecision policy, String status) {
+  public long create(
+      ActionProposal p,
+      PolicyEngine.PolicyDecision policy,
+      String status,
+      Map<String, Object> impact) {
     AiDecision d = new AiDecision();
+    d.setImpact(impact == null ? new LinkedHashMap<>() : new LinkedHashMap<>(impact));
     d.setDecisionType(p.decisionType());
     d.setActionType(p.actionType());
     d.setTitle(truncate(p.title(), 200));

@@ -6,11 +6,15 @@ import com.xperp.finance.api.FinanceService;
 import com.xperp.shared.persistence.Money;
 import com.xperp.shared.time.SimTime;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.stereotype.Component;
 
 /**
@@ -29,6 +33,30 @@ public class PolicyEngine {
   /** Acciones que gastan dinero y por eso pasan por presupuesto y tope diario. */
   static final List<String> SPENDING_ACTIONS =
       List.of("create_purchase_order", "reassign_purchase_order");
+
+  /**
+   * Acciones con impacto financiero o sobre el inventario (ADR 0004): la IA las recomienda y una
+   * persona las aprueba siempre. Ninguna política puede subirlas a nivel 2 o 3. Quedan fuera las
+   * guías de transporte (flete rutinario cotizado) y la retención de pedidos anómalos (es la medida
+   * de protección; una persona la libera o la revierte).
+   */
+  public static final Set<String> APPROVAL_REQUIRED_ACTIONS =
+      Set.of(
+          "create_purchase_order",
+          "reassign_purchase_order",
+          "cancel_purchase_order",
+          "propose_stock_transfer",
+          "adjust_inventory",
+          "apply_budget_plan");
+
+  /** Quién aprueba una acción protegida cuando la política no lo dice. */
+  static String defaultApprover(String actionType) {
+    return switch (actionType) {
+      case "create_purchase_order", "reassign_purchase_order", "cancel_purchase_order" ->
+          "purchasing";
+      default -> "manager";
+    };
+  }
 
   public record PolicyDecision(String result, Integer level, String approverRole, String reason) {
 
@@ -71,7 +99,10 @@ public class PolicyEngine {
     Optional<AutonomyPolicy> policy = match(p);
     int level = policy.map(AutonomyPolicy::getLevel).orElse(1);
     String role =
-        policy.map(AutonomyPolicy::getApproverRole).filter(r -> !r.isBlank()).orElse("manager");
+        policy
+            .map(AutonomyPolicy::getApproverRole)
+            .filter(r -> r != null && !r.isBlank())
+            .orElse(defaultApprover(p.actionType()));
     String reason =
         policy.map(AutonomyPolicy::getDescription).orElse("Sin política: requiere aprobación");
 
@@ -101,7 +132,52 @@ public class PolicyEngine {
                 .formatted(Money.display(s.dailySpendCap()), Money.display(spent)));
       }
     }
+    if (APPROVAL_REQUIRED_ACTIONS.contains(p.actionType())) {
+      return new PolicyDecision(
+          PENDING_APPROVAL,
+          1,
+          role,
+          "Impacto financiero u operativo: la IA recomienda y una persona aprueba. " + reason);
+    }
     return new PolicyDecision(EXECUTED, level, null, reason);
+  }
+
+  /**
+   * Efecto de la propuesta en el presupuesto de cada categoría: disponible antes y después, y el
+   * uso resultante. Lista vacía si la acción no gasta.
+   */
+  public List<Map<String, Object>> budgetImpact(ActionProposal p) {
+    Object raw = p.attributes().get("amounts_by_category");
+    if (!(raw instanceof Map<?, ?> byCategory)) {
+      return List.of();
+    }
+    String period = SimTime.period(clock.instant());
+    List<Map<String, Object>> lines = new ArrayList<>();
+    for (Map.Entry<?, ?> e : byCategory.entrySet()) {
+      long categoryId = Long.parseLong(e.getKey().toString());
+      BigDecimal amount = new BigDecimal(e.getValue().toString());
+      BudgetDto budget = finance.budget(categoryId, period);
+      BigDecimal usedAfter = budget.used().add(amount);
+      Map<String, Object> m = new LinkedHashMap<>();
+      m.put("category", catalog.category(categoryId).name());
+      m.put("period", period);
+      m.put("budget", Money.format(budget.amount()));
+      m.put("amount", Money.format(amount));
+      m.put("available_before", Money.format(budget.available()));
+      m.put("available_after", Money.format(budget.amount().subtract(usedAfter)));
+      m.put("usage_pct_after", usagePct(usedAfter, budget.amount()));
+      lines.add(m);
+    }
+    return lines;
+  }
+
+  static Double usagePct(BigDecimal used, BigDecimal total) {
+    if (total == null || total.signum() == 0) {
+      return null;
+    }
+    return used.multiply(BigDecimal.valueOf(100))
+        .divide(total, 1, RoundingMode.HALF_UP)
+        .doubleValue();
   }
 
   /** La política más específica que cumple tipo de acción, rango de monto y condiciones. */

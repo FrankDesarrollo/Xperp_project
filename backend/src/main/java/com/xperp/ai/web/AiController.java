@@ -20,6 +20,8 @@ import com.xperp.shared.contract.model.Approval;
 import com.xperp.shared.contract.model.ApprovalDecisionRequest;
 import com.xperp.shared.contract.model.ApprovalPage;
 import com.xperp.shared.contract.model.AutonomyPolicy;
+import com.xperp.shared.contract.model.BudgetImpact;
+import com.xperp.shared.contract.model.DecisionImpact;
 import com.xperp.shared.contract.model.DecisionReference;
 import com.xperp.shared.contract.model.ForecastSeries;
 import com.xperp.shared.contract.model.ReasonRequest;
@@ -36,6 +38,7 @@ import com.xperp.shared.time.SimTime;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -322,6 +325,7 @@ class AiController implements AiApi {
         .title(d.getTitle())
         .triggerRef(d.getTriggerRef())
         .amount(Money.format(d.getAmount()))
+        .impact(impact(d.getImpact()))
         .policyReason(d.getPolicyReason())
         .autonomyLevel(d.getAutonomyLevel())
         .resultMessage(d.getResultMessage())
@@ -335,6 +339,40 @@ class AiController implements AiApi {
         .tokensIn(d.getTokensIn())
         .tokensOut(d.getTokensOut())
         .latencyMs(d.getLatencyMs());
+  }
+
+  /** Impacto guardado en jsonb → modelo del contrato; null en decisiones anteriores a V170. */
+  static DecisionImpact impact(Map<String, Object> m) {
+    if (m == null || m.isEmpty()) {
+      return null;
+    }
+    List<BudgetImpact> budget = new ArrayList<>();
+    if (m.get("budget") instanceof List<?> lines) {
+      for (Object o : lines) {
+        if (o instanceof Map<?, ?> b) {
+          Object pct = b.get("usage_pct_after");
+          budget.add(
+              new BudgetImpact(
+                      str(b.get("category")),
+                      str(b.get("period")),
+                      str(b.get("budget")),
+                      str(b.get("amount")),
+                      str(b.get("available_before")),
+                      str(b.get("available_after")))
+                  .usagePctAfter(pct == null ? null : Double.valueOf(pct.toString())));
+        }
+      }
+    }
+    return new DecisionImpact(budget)
+        .amount(str(m.get("amount")))
+        .economic(str(m.get("economic")))
+        .operational(str(m.get("operational")))
+        .riskIfRejected(str(m.get("risk_if_rejected")))
+        .riskLevel(str(m.get("risk_level")));
+  }
+
+  private static String str(Object o) {
+    return o == null ? null : o.toString();
   }
 
   private static List<AiDecisionRef> dedupe(List<AiDecisionRef> refs) {

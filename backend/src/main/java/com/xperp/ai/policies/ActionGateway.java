@@ -72,6 +72,7 @@ public class ActionGateway {
 
   public Outcome submit(ActionProposal p) {
     ActionExecutor executor = executors.get(p.actionType());
+    Map<String, Object> impact = impact(p);
 
     // 1. Validación de negocio
     try {
@@ -80,7 +81,7 @@ public class ActionGateway {
       PolicyEngine.PolicyDecision invalid =
           new PolicyEngine.PolicyDecision(
               PolicyEngine.BLOCKED, null, null, "Validación: " + e.getMessage());
-      long id = recorder.create(p, invalid, "blocked");
+      long id = recorder.create(p, invalid, "blocked", impact);
       recorder.finish(id, "blocked", e.getMessage(), null, List.of(), false);
       return new Outcome(id, PolicyEngine.BLOCKED, "blocked", e.getMessage(), Map.of());
     }
@@ -94,7 +95,7 @@ public class ActionGateway {
           case PolicyEngine.SUGGESTED -> "suggested";
           default -> "blocked";
         };
-    long id = recorder.create(p, policy, initial);
+    long id = recorder.create(p, policy, initial, impact);
 
     // 3. Resultado
     switch (policy.result()) {
@@ -143,6 +144,22 @@ public class ActionGateway {
         return new Outcome(id, policy.result(), initial, policy.reason(), Map.of());
       }
     }
+  }
+
+  /**
+   * Impacto que ve quien aprueba: el que calculó quien propuso (o solo el monto) más el efecto en
+   * el presupuesto de cada categoría si la acción gasta.
+   */
+  private Map<String, Object> impact(ActionProposal p) {
+    Impact impact = p.impact() != null ? p.impact() : Impact.fromAmount(p.amount());
+    if (PolicyEngine.SPENDING_ACTIONS.contains(p.actionType())) {
+      try {
+        impact = impact.withBudget(policies.budgetImpact(p));
+      } catch (RuntimeException e) {
+        log.warn("No se pudo calcular el efecto en el presupuesto: {}", e.getMessage());
+      }
+    }
+    return impact.toMap();
   }
 
   static String roleName(String role) {

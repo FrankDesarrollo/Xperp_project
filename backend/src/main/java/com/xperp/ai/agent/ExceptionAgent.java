@@ -2,6 +2,7 @@ package com.xperp.ai.agent;
 
 import com.xperp.ai.policies.ActionProposal;
 import com.xperp.ai.policies.AiSettingsService;
+import com.xperp.ai.policies.Impact;
 import com.xperp.ai.scoring.SupplierScorer;
 import com.xperp.ai.tools.WriteTools;
 import com.xperp.catalog.api.CatalogService;
@@ -210,11 +211,50 @@ class ExceptionAgent {
 
     Map<String, Object> attributes = new HashMap<>();
     BigDecimal amount = null;
+    Impact impact;
+    String coverText =
+        criticalSku == null ? "" : criticalSku + " cubre " + Fmt.days(minCover) + ".";
     if (chosen.id().startsWith("reassign:")) {
       Alternative a = alternatives.get(options.indexOf(chosen));
       double overcost = overcostPct(oldTotal, a.total());
       attributes.put("overcost_pct", overcost);
       amount = Money.round(a.total());
+      BigDecimal extra = Money.round(a.total().subtract(oldTotal));
+      impact =
+          Impact.of(
+              amount,
+              "Compromete %s con %s; sobrecosto de %s (%s) frente a %s."
+                  .formatted(
+                      Fmt.money(amount),
+                      a.supplier().name(),
+                      Fmt.money(extra),
+                      Fmt.pct(overcost),
+                      po.supplierName()),
+              "Llega en %d %s a %s. %s"
+                  .formatted(
+                      a.leadTime(),
+                      a.leadTime() == 1 ? "día" : "días",
+                      warehouse.code(),
+                      coverText),
+              "Si no se aprueba, %s queda sin reposición hasta decidir otra opción."
+                  .formatted(po.number()),
+              Impact.riskFromCover(minCover, a.leadTime()));
+    } else if ("wait".equals(chosen.id())) {
+      impact =
+          Impact.of(
+              null,
+              "Sin costo adicional: se mantiene el precio pactado de " + Fmt.money(oldTotal) + ".",
+              "La mercancía llega el %s. %s".formatted(SimTime.display(po.expectedAt()), coverText),
+              null,
+              Impact.riskFromCover(minCover, daysUntilNew));
+    } else {
+      impact =
+          Impact.of(
+              Money.round(oldTotal.negate()),
+              "Libera " + Fmt.money(oldTotal) + " del presupuesto comprometido.",
+              "Lo pendiente de %s queda sin reposición. %s".formatted(po.number(), coverText),
+              "Si no se aprueba, la OC sigue abierta con " + po.supplierName() + ".",
+              Impact.riskFromCover(minCover, 1));
     }
     WriteTools.Context ctx =
         new WriteTools.Context(
@@ -228,7 +268,8 @@ class ExceptionAgent {
             choice.trace(),
             attributes,
             amount,
-            List.of(new ActionProposal.Ref("purchase_order", po.id(), po.number())));
+            List.of(new ActionProposal.Ref("purchase_order", po.id(), po.number())),
+            impact);
     String result =
         tools.withContext(
             ctx,

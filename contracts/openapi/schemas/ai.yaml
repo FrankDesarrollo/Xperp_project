@@ -50,6 +50,8 @@ AiDecision:
     amount:
       type: [string, "null"]
       description: Monto de la acción, si aplica (string decimal)
+    impact:
+      $ref: "#/DecisionImpact"
     policy_result:
       type: string
       description: "executed, pending_approval, suggested, blocked"
@@ -100,6 +102,56 @@ AiDecision:
       type: array
       items:
         $ref: "#/DecisionReference"
+
+DecisionImpact:
+  type: object
+  description: >-
+    Impacto económico y operativo de la recomendación (ADR 0004). Lo ve quien aprueba: qué cuesta,
+    qué cambia en la operación y qué pasa si la rechaza.
+  required: [budget]
+  properties:
+    amount:
+      type: [string, "null"]
+      description: Monto que compromete (positivo) o libera (negativo), string decimal
+    economic:
+      type: [string, "null"]
+      description: Efecto económico en una frase, con los números
+    operational:
+      type: [string, "null"]
+      description: Efecto operativo en una frase (cobertura, quiebres, pedidos)
+    risk_if_rejected:
+      type: [string, "null"]
+      description: Qué pasa si nadie la aprueba
+    risk_level:
+      type: [string, "null"]
+      description: "low, medium, high"
+    budget:
+      type: array
+      items:
+        $ref: "#/BudgetImpact"
+
+BudgetImpact:
+  type: object
+  required: [category, period, budget, amount, available_before, available_after]
+  properties:
+    category:
+      type: string
+    period:
+      type: string
+      description: YYYY-MM
+    budget:
+      type: string
+      description: Presupuesto del mes (string decimal)
+    amount:
+      type: string
+      description: Lo que esta acción suma a la categoría (string decimal)
+    available_before:
+      type: string
+    available_after:
+      type: string
+    usage_pct_after:
+      type: [number, "null"]
+      format: double
 
 AiDecisionPage:
   type: object

@@ -45,6 +45,12 @@ public class PolicyAdminService {
       if (c.level() < 0 || c.level() > 3) {
         throw BusinessException.invalid("invalid_level", "El nivel va de 0 a 3");
       }
+      if (c.level() >= 2 && PolicyEngine.APPROVAL_REQUIRED_ACTIONS.contains(p.getActionType())) {
+        throw BusinessException.invalid(
+            "approval_required",
+            "Esta acción tiene impacto financiero u operativo: la IA solo puede recomendarla (nivel"
+                + " 0) o prepararla para aprobación (nivel 1)");
+      }
       if (c.level() == 1 && (c.approverRole() == null || !ROLES.contains(c.approverRole()))) {
         throw BusinessException.invalid(
             "invalid_role", "El nivel 1 necesita un rol aprobador válido");

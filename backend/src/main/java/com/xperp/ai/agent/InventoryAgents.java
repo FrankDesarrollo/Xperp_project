@@ -5,6 +5,7 @@ import com.xperp.ai.forecasting.ForecastService;
 import com.xperp.ai.policies.ActionGateway;
 import com.xperp.ai.policies.ActionProposal;
 import com.xperp.ai.policies.AiSettingsService;
+import com.xperp.ai.policies.Impact;
 import com.xperp.ai.rules.ReorderRules;
 import com.xperp.ai.scoring.SupplierScorer;
 import com.xperp.catalog.api.CatalogService;
@@ -177,6 +178,20 @@ class InventoryAgents {
             .reasoning(text.text())
             .confidence(0.75)
             .amount(Money.round(value))
+            .impact(
+                Impact.of(
+                    Money.round(value),
+                    "%s el valor del inventario en %s a costo."
+                        .formatted(count.difference() < 0 ? "Baja" : "Sube", Fmt.money(value)),
+                    "El kardex de %s en %s pasa de %s a %s und."
+                        .formatted(
+                            p.sku(),
+                            w.code(),
+                            Fmt.units(count.systemQty()),
+                            Fmt.units(count.countedQty())),
+                    "Si no se aprueba, el sistema planea compras con un stock que no existe"
+                        + " físicamente.",
+                    Math.abs(count.differencePct()) > 5 ? Impact.HIGH : Impact.MEDIUM))
             .llm(text.trace())
             .ref("product", p.id(), p.sku())
             .build());

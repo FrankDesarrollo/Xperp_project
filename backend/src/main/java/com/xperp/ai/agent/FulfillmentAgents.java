@@ -2,6 +2,7 @@ package com.xperp.ai.agent;
 
 import com.xperp.ai.policies.ActionGateway;
 import com.xperp.ai.policies.ActionProposal;
+import com.xperp.ai.policies.Impact;
 import com.xperp.ai.scoring.CarrierScorer;
 import com.xperp.inventory.api.InventoryService;
 import com.xperp.logistics.api.CarrierQuoteDto;
@@ -124,6 +125,14 @@ class FulfillmentAgents {
             .payload(Map.of("sales_order_id", order.id()))
             .reasoning(text.text())
             .confidence(0.8)
+            .impact(
+                Impact.of(
+                    null,
+                    "Deja en espera una venta de %s hasta que alguien la revise."
+                        .formatted(Fmt.money(order.total())),
+                    "No reserva stock: el inventario sigue disponible para los demás clientes.",
+                    "Si nadie la libera, el cliente no recibe el pedido.",
+                    Impact.MEDIUM))
             .llm(text.trace())
             .ref("sales_order", order.id(), order.number())
             .build());
@@ -236,6 +245,17 @@ class FulfillmentAgents {
             .payload(payload)
             .reasoning(reasoning)
             .amount(Money.round(BigDecimal.valueOf(chosen.candidate().cost())))
+            .impact(
+                Impact.of(
+                    Money.round(BigDecimal.valueOf(chosen.candidate().cost())),
+                    "Flete de %s con %s."
+                        .formatted(
+                            Fmt.money(BigDecimal.valueOf(chosen.candidate().cost())),
+                            chosen.candidate().carrierCode()),
+                    "Entrega estimada en %s días en %s."
+                        .formatted(chosen.candidate().etaDays(), ctx.destinationCity()),
+                    null,
+                    Impact.LOW))
             .llm(trace)
             .ref("sales_order", order.id(), order.number())
             .build());

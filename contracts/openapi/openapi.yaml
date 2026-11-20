@@ -317,6 +317,10 @@ components:
     # ai
     DecisionReference:
       $ref: schemas/ai.yaml#/DecisionReference
+    DecisionImpact:
+      $ref: schemas/ai.yaml#/DecisionImpact
+    BudgetImpact:
+      $ref: schemas/ai.yaml#/BudgetImpact
     AiDecision:
       $ref: schemas/ai.yaml#/AiDecision
     AiDecisionPage:

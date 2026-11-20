@@ -1,6 +1,7 @@
 package com.xperp.ai.agent;
 
 import com.xperp.ai.policies.ActionProposal;
+import com.xperp.ai.policies.Impact;
 import com.xperp.catalog.api.ProductDto;
 import com.xperp.purchasing.api.SupplierDto;
 import com.xperp.shared.persistence.Money;
@@ -199,6 +200,49 @@ final class PurchaseProposals {
         .formatted(skus, plan.warehouseCode(), plan.supplier().code());
   }
 
+  /**
+   * Impacto de una OC (ADR 0004): cuánto compromete, cuántos días de inventario repone y qué pasa
+   * si no se aprueba, según el SKU más justo frente al tiempo de entrega del proveedor.
+   */
+  static Impact impact(Plan plan) {
+    Integer lead = plan.supplier().leadTimeTo(plan.warehouseId());
+    int leadTime = lead == null ? 0 : lead;
+    PlannedLine tightest =
+        plan.lines().stream()
+            .min((a, b) -> Double.compare(a.daysOfCover(), b.daysOfCover()))
+            .orElse(null);
+    long units = plan.lines().stream().mapToLong(PlannedLine::quantity).sum();
+    String economic =
+        "Compromete %s con %s (pago a %d días)."
+            .formatted(
+                Fmt.money(Money.round(plan.total())),
+                plan.supplier().name(),
+                plan.supplier().paymentTermsDays());
+    if (tightest == null) {
+      return Impact.of(Money.round(plan.total()), economic, null, null, Impact.LOW);
+    }
+    String operational =
+        "Repone %s und de %d SKU en %s; llega en %d %s."
+            .formatted(
+                Fmt.units(units),
+                plan.lines().size(),
+                plan.warehouseCode(),
+                leadTime,
+                leadTime == 1 ? "día" : "días");
+    String risk =
+        "%s cubre %s; el pedido tarda %d %s en llegar."
+            .formatted(
+                tightest.product().name(),
+                Fmt.days(tightest.daysOfCover()),
+                leadTime,
+                leadTime == 1 ? "día" : "días");
+    String level = Impact.riskFromCover(tightest.daysOfCover(), leadTime);
+    if (Impact.HIGH.equals(level)) {
+      risk += " Si no se aprueba hoy, habrá quiebre y ventas perdidas.";
+    }
+    return Impact.of(Money.round(plan.total()), economic, operational, risk, level);
+  }
+
   static ActionProposal.Builder builder(
       Plan plan, String decisionType, String triggerEvent, String triggerRef) {
     String key = idempotencyKey(plan, triggerRef);
@@ -209,7 +253,8 @@ final class PurchaseProposals {
             .payload(payload(plan, key))
             .alternatives(alternatives(plan))
             .amount(Money.round(plan.total()))
-            .attribute("amounts_by_category", plan.amountsByCategory());
+            .attribute("amounts_by_category", plan.amountsByCategory())
+            .impact(impact(plan));
     for (PlannedLine l : plan.lines()) {
       b.ref("product", l.product().id(), l.product().sku());
     }

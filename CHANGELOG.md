@@ -47,8 +47,13 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 - **[frontend]** Estados de carga y de error con «Reintentar» en las 12 pantallas (`Loader` y `LoadState`), y «sin acceso» cuando el rol no puede ver una sección.
 - **[frontend]** Mocks de MSW para recomendaciones, asistente, bodegas y categorías; pruebas de `Loader`, `LoadState` y permisos, y dos recorridos e2e (recomendaciones y asistente).
 - **[partners]** Pruebas con WireMock del cliente HTTP hacia partners-mock: qué envía (token, cuerpo de la OC, cotización y envío), qué lee (catálogo con precio exacto y vigencia) y cómo falla (401, conexión cortada, 422 sin cobertura frente a 500, reinicio que no tumba la simulación).
+- **[ai]** Cada decisión guarda su impacto económico y operativo (`Impact`): monto que compromete o libera, efecto económico, efecto operativo, qué pasa si se rechaza, nivel de riesgo y efecto en el presupuesto de cada categoría. Columna `ai_decisions.impact` (migración `V170`). Ver [ADR 0004](docs/decisions/0004-ia-recomienda-persona-aprueba.md).
+- **[contracts]** `AiDecision.impact` con los esquemas `DecisionImpact` y `BudgetImpact`.
 
 ### Cambiado
+
+- **[backend]** Flyway con `out-of-order: true`: con la numeración por bloques (12.2), una migración nueva de A (`V170`) llega después de las de B ya aplicadas (`V510`) y sin esto el backend no arranca.
+- **[ai]** La IA recomienda y una persona aprueba ([ADR 0004](docs/decisions/0004-ia-recomienda-persona-aprueba.md)). Crear, reasignar o cancelar OC, trasladar, ajustar inventario y aplicar planes de presupuesto siempre esperan aprobación, aunque una política diga nivel 2 o 3. `PolicyAdminService` rechaza subirlas de nivel y `V170` corrige las políticas guardadas. Guías, retenciones de pedidos anómalos, alertas, tareas de bodega y parámetros de reorden siguen siendo automáticos.
 
 - **[ai]** `TransferAgent.donor` y el cálculo de la cantidad a trasladar (`TransferAgent.plan`) son estáticos y los comparten el agente y las recomendaciones; el agente usa `StockAdvice.urgent` para decidir si traslada.
 - **[frontend]** Menú móvil con fondo, cierre con Escape y oculto para el teclado cuando está cerrado; el panel de notificaciones se cierra con Escape o al tocar fuera; el `Drawer` mueve el foco al abrirse y lo devuelve al cerrarse; en pantallas táctiles todo control mide al menos 44 px (botones, campos, pestañas, enlaces de tabla y la etiqueta de cada casilla).

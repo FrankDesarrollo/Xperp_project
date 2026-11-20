@@ -61,6 +61,11 @@ public class AiDecision extends TenantEntity {
   @Column(precision = 14, scale = 2)
   private BigDecimal amount;
 
+  /** Impacto económico y operativo que ve quien aprueba (ADR 0004). */
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(nullable = false, columnDefinition = "jsonb")
+  private Map<String, Object> impact = new LinkedHashMap<>();
+
   @Column(name = "policy_result", nullable = false, length = 20)
   private String policyResult;
 

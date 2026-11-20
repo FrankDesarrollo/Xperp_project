@@ -1,6 +1,6 @@
 # Xperp: contexto del proyecto
 
-Xperp (Expert ERP) es un SaaS de gestión empresarial en el que la IA toma decisiones operativas, las ejecuta y les hace seguimiento. Además de analizar datos o responder preguntas, la IA actúa. El caso de uso es una distribuidora de productos de consumo masivo. Cuando las ventas bajan el inventario, el sistema calcula cuánto comprar, elige proveedor, envía la orden, avisa a bodega qué preparar, genera la guía de despacho y deja registro de por qué tomó cada decisión.
+Xperp (Expert ERP) es un SaaS de gestión empresarial en el que la IA analiza la operación, recomienda decisiones con su impacto económico y operativo, y les hace seguimiento. Las acciones con impacto financiero o sobre el inventario las aprueba una persona (ADR 0004). La IA no corre todo el tiempo: se activa con eventos, condiciones, revisiones programadas o cuando el usuario la pide. El caso de uso es una distribuidora de productos de consumo masivo. Cuando las ventas bajan el inventario, el sistema calcula cuánto comprar, recomienda el proveedor, deja la orden lista para aprobación, avisa a bodega qué preparar, genera la guía de despacho y deja registro de por qué tomó cada decisión.
 
 Es un proyecto académico de dos personas, con datos demo. La arquitectura, en cambio, debe permitir pasar de MVP a producto comercial sin reescribirlo.
 
@@ -13,9 +13,9 @@ Este archivo es la fuente de contexto para el equipo y para cualquier agente de 
 1. La IA es parte del flujo. Si se apaga, el ERP sigue funcionando, pero alguien tiene que hacer a mano lo que ella hacía.
 2. Cada decisión es trazable: qué datos vio, qué alternativas tenía, qué eligió, por qué y quién la aprobó.
 3. La IA propone, el backend valida y la política decide. El LLM nunca toca la base de datos.
-4. Hay supervisión humana configurable: niveles de autonomía, umbrales de monto, kill switch y modo sombra.
+4. Hay supervisión humana: la IA recomienda, explica por qué e indica el impacto, y una persona autorizada aprueba toda acción con impacto financiero o sobre el inventario (compras, reasignaciones, cancelaciones, traslados, ajustes y planes de presupuesto). También hay niveles de autonomía para lo operativo, umbrales de monto, kill switch y modo sombra (ADR 0004).
 5. El sistema arranca con una empresa demo completa y opera solo. Nadie tiene que cargar datos para que la demo funcione.
-6. Las reglas determinísticas resuelven lo que tiene respuesta exacta. El LLM se usa cuando hay que elegir entre opciones, manejar excepciones o explicar.
+6. Las reglas determinísticas resuelven lo que tiene respuesta exacta. El LLM se usa cuando hay que elegir entre opciones, manejar excepciones o explicar. La IA no queda corriendo: el sistema detecta las condiciones (stock bajo el punto de reorden, conteo con diferencia, alza de precio) y solo entonces activa el análisis. También se activa en revisiones programadas o cuando el usuario la pide.
 
 ---
 
@@ -236,7 +236,7 @@ Si la demanda supera lo disponible, la línea se despacha parcial y lo que falta
 | CPE | 70.000.000 (ajustado a propósito: obliga a priorizar a final de mes) |
 | SNK | 50.000.000 |
 
-Tope diario de compras que puede ejecutar la IA: 40.000.000.
+Tope diario de compras de la IA: 40.000.000. Las compras siempre pasan por aprobación (ADR 0004); si se supera el tope, la aprobación sube a `manager`.
 
 ### 2.13 Guion de escenarios
 
@@ -244,12 +244,12 @@ Vive en `backend/src/main/resources/demo/scenarios.yml` y lo ejecuta el módulo 
 
 | Día | Evento | Qué debe hacer Xperp |
 |---|---|---|
-| 1 | Aceite 1 L y leche UHT en CAL-01 arrancan bajos | El ciclo diario genera OC; la leche va a PRV-03 por tiempo de entrega |
+| 1 | Aceite 1 L y leche UHT en CAL-01 arrancan bajos | El ciclo diario recomienda las OC (la leche a PRV-03 por tiempo de entrega) con su impacto, y Compras las aprueba |
 | 1 | Pañales en 0 en BOG-01 y con 40 días en CAL-01 | Propone traslado en vez de comprar; pide aprobación |
-| 1 | Papel higiénico en CAL-01 por debajo del punto de reorden | OC a PRV-06 |
+| 1 | Papel higiénico en CAL-01 por debajo del punto de reorden | Recomienda OC a PRV-06; Compras la aprueba |
 | 2 | Festivo | Baja la demanda; no hay compras de pánico |
-| 5 | PRV-06 reporta retraso de 4 días | Reasigna a PRV-09 y explica el sobrecosto |
-| 6 | PRV-02 rechaza una OC de arroz por falta de stock | Reasigna a PRV-01 |
+| 5 | PRV-06 reporta retraso de 4 días | Recomienda reasignar a PRV-09, explica el sobrecosto y pide aprobación |
+| 6 | PRV-02 rechaza una OC de arroz por falta de stock | Recomienda reasignar a PRV-01 y pide aprobación |
 | 10 | PRV-01 sube el café 18 % | Alerta de precio; vuelve a calificar proveedores para ese SKU |
 | 15 | Quincena | Pico de demanda; el pronóstico lo absorbe |
 | 15 | Conteo de detergente en CAL-01: el físico da 7 % menos que el kardex (1.170 por cada 1.260) | Alerta de discrepancia, ajuste pendiente de aprobación y tarea de reconteo |
@@ -634,7 +634,7 @@ Disponible = `on_hand - reserved`. En tránsito se calcula con las OC y traslado
 
 ### 6.8 IA y control
 - `demand_forecasts`: product_id, warehouse_id, forecast_date, quantity, model, generated_at
-- `ai_decisions`: id, decision_type, trigger_event, trigger_ref, input_snapshot (jsonb), alternatives (jsonb), proposed_action (jsonb), reasoning, confidence, policy_result (`executed`, `pending_approval`, `suggested`, `blocked`), status, approved_by, executed_at, reverted_at, llm_used, llm_model, prompt_version, tokens_in, tokens_out, latency_ms, sim_time
+- `ai_decisions`: id, decision_type, trigger_event, trigger_ref, input_snapshot (jsonb), alternatives (jsonb), proposed_action (jsonb), reasoning, confidence, impact (jsonb: monto, efecto económico y operativo, riesgo si se rechaza, efecto en el presupuesto), policy_result (`executed`, `pending_approval`, `suggested`, `blocked`), status, approved_by, executed_at, reverted_at, llm_used, llm_model, prompt_version, tokens_in, tokens_out, latency_ms, sim_time
 - `autonomy_policies`: id, action_type, level, min_amount, max_amount, approver_role, conditions (jsonb), is_enabled
 - `approvals`: id, ai_decision_id, requested_role, status, decided_by, decided_at, comment
 - `alerts`: id, type, severity, message, entity_type, entity_id, is_read
@@ -758,8 +758,8 @@ Hay empate técnico cuando la diferencia entre las dos primeras es menor a 0.05.
 
 | Tipo | Disparador | Acción | Nivel por defecto |
 |---|---|---|---|
-| `replenishment` | Ciclo diario o `StockBelowSafety` | `create_purchase_order` | Según monto (9.2) |
-| `po_exception` | OC rechazada o retrasada | `reassign_purchase_order`, `cancel_purchase_order` o esperar | 2 si el sobrecosto es ≤ 10 %; si no, 1 |
+| `replenishment` | Ciclo diario o `StockBelowSafety` | `create_purchase_order` | 1; el aprobador depende del monto (9.2) |
+| `po_exception` | OC rechazada o retrasada | `reassign_purchase_order`, `cancel_purchase_order` o esperar | 1: `purchasing` si el sobrecosto es ≤ 10 %; si no, `manager` |
 | `stock_transfer` | Quiebre en una bodega y más de 30 días de cobertura en la otra | `propose_stock_transfer` | 1 (manager) |
 | `fulfillment` | `SalesOrderCreated` | `create_warehouse_task` | 3 |
 | `carrier_selection` | `SalesOrderPacked` | `create_shipment` | 2 |
@@ -843,11 +843,15 @@ Responde preguntas como "¿qué se agota esta semana?", "¿qué me recomiendas r
 | 2 | Ejecuta y notifica |
 | 3 | Ejecuta sin notificar (bajo riesgo) |
 
+**Acciones protegidas (ADR 0004).** `create_purchase_order`, `reassign_purchase_order`, `cancel_purchase_order`, `propose_stock_transfer`, `adjust_inventory` y `apply_budget_plan` solo admiten nivel 0 o 1. `PolicyEngine` las trata como nivel 1 aunque la política diga otra cosa, y IA → Políticas no deja subirlas de nivel. Los niveles 2 y 3 quedan para lo operativo sin impacto financiero: alertas, tareas de bodega, recalificación, parámetros de reorden, resumen diario, guías de transporte (flete rutinario ya cotizado) y retención de pedidos anómalos (es la medida de protección; una persona libera el pedido o revierte la decisión).
+
+Cada recomendación muestra su impacto (`ai_decisions.impact`): el monto que compromete o libera, el efecto económico, el efecto operativo, qué pasa si se rechaza, el nivel de riesgo y el efecto en el presupuesto de cada categoría.
+
 ### 9.2 Umbrales de órdenes de compra
 
 | Monto de la OC | Comportamiento |
 |---|---|
-| Menos de 5.000.000 | Nivel 2: se ejecuta y se notifica |
+| Menos de 5.000.000 | Aprobación de `purchasing` |
 | De 5.000.000 a 20.000.000 | Aprobación de `purchasing` |
 | Más de 20.000.000 | Aprobación de `manager` |
 
@@ -1131,7 +1135,7 @@ Todo en contenedores: `docker compose up -d --build`.
 | 3. Socios | partners-mock, webhooks, correo | Proveedores y transportadoras responden por webhook | B |
 | 4. Reglas y pronóstico | Stock de seguridad, punto de reorden, Holt-Winters | El ciclo diario propone compras correctas | A |
 | 5. Logística | Tareas de bodega, guías, traslados, bodeguero virtual | Un pedido sale con guía sin intervención | A + B |
-| 6. Agente y políticas | Spring AI, tools, ActionGateway, aprobaciones, bitácora | Ciclo completo autónomo para OC pequeñas | A |
+| 6. Agente y políticas | Spring AI, tools, ActionGateway, aprobaciones, bitácora | Ciclo completo: la IA recomienda la OC con su impacto, Compras la aprueba y se envía al proveedor | A |
 | 6. Centro de IA | Decisiones, aprobaciones, políticas, SSE en vivo | Se aprueba una OC desde la interfaz y se ve el efecto | B |
 | 7. Guion y asistente | `scenarios.yml`, asistente, resumen diario | Los 14 escenarios de la tabla 2.13 se cumplen | Ambos |
 | 8. Ensayo | `docs/demo-script.md`, ajustes | Demo de 10 minutos sin fallas en modo `mock` y con LLM real | Ambos |

@@ -5,6 +5,7 @@ import com.xperp.ai.agent.PurchaseProposals.PlannedLine;
 import com.xperp.ai.policies.ActionExecutor;
 import com.xperp.ai.policies.ActionGateway;
 import com.xperp.ai.policies.ActionProposal;
+import com.xperp.ai.policies.Impact;
 import com.xperp.ai.policies.Payloads;
 import com.xperp.catalog.api.CatalogService;
 import com.xperp.catalog.api.CategoryDto;
@@ -154,6 +155,20 @@ class BudgetPlanner implements ActionExecutor {
                 .reasoning(text.text())
                 .confidence(0.85)
                 .amount(Money.round(planTotal))
+                .impact(
+                    Impact.of(
+                        Money.round(cumulative),
+                        "Usa %s de los %s disponibles en %s; %s quedan fuera del presupuesto."
+                            .formatted(
+                                Fmt.money(cumulative),
+                                Fmt.money(remaining),
+                                category.name(),
+                                Fmt.money(planTotal.subtract(cumulative))),
+                        "%d SKU se reponen ya y %d esperan aprobación de gerencia. Cada OC del plan"
+                                .formatted(buy.size(), defer.size())
+                            + " se presenta para aprobación por separado.",
+                        "Si no se aprueba, las compras de la categoría se frenan hasta decidir.",
+                        defer.isEmpty() ? Impact.MEDIUM : Impact.HIGH))
                 .llm(text.trace())
                 .build());
     return 1;
@@ -164,6 +179,7 @@ class BudgetPlanner implements ActionExecutor {
     m.put("title", PurchaseProposals.title(plan));
     m.put("reasoning", PurchaseProposals.reasoning(plan, "Priorizada por presupuesto."));
     m.put("amounts_by_category", plan.amountsByCategory());
+    m.put("impact", PurchaseProposals.impact(plan).toMap());
     m.put("input", PurchaseProposals.input(plan, Map.of()));
     m.put(
         "payload",
@@ -213,6 +229,7 @@ class BudgetPlanner implements ActionExecutor {
             .confidence(0.9)
             .amount(new BigDecimal(String.valueOf(payload.get("total"))))
             .attribute("amounts_by_category", Payloads.getMap(plan, "amounts_by_category"))
+            .impact(Impact.fromMap(Payloads.getMap(plan, "impact")))
             .ref("ai_decision", parentId, "Plan #" + parentId);
     if (defer) {
       b.forceApproval("manager", "Priorización de presupuesto: no cabe en lo disponible del mes");

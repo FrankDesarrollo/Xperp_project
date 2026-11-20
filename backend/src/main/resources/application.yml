@@ -28,6 +28,9 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+    # Numeración por bloques (AGENTS.md 12.2): A usa V100–V499 y B V500–V899, así que una
+    # migración nueva de A (p. ej. V170) llega después de V510 ya aplicada. Sin esto Flyway la rechaza.
+    out-of-order: true
 
   jackson:
     property-naming-strategy: SNAKE_CASE

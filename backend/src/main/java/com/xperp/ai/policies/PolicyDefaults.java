@@ -21,13 +21,14 @@ public class PolicyDefaults {
   @Transactional
   public void create() {
     policies.deleteAll();
+    // ADR 0004: toda acción con impacto financiero o sobre el inventario la aprueba una persona.
     add(
         "create_purchase_order",
-        "OC de menos de $ 5.000.000: se ejecuta y se notifica",
-        2,
+        "OC de menos de $ 5.000.000: aprueba Compras",
+        1,
         null,
         "5000000",
-        null,
+        "purchasing",
         Map.of());
     add(
         "create_purchase_order",
@@ -47,19 +48,19 @@ public class PolicyDefaults {
         Map.of());
     add(
         "reassign_purchase_order",
-        "Reasignación con sobrecosto ≤ 10 %: se ejecuta y se notifica",
-        2,
-        null,
-        null,
-        null,
-        Map.of("overcost_pct_lte", 10));
-    add(
-        "reassign_purchase_order",
-        "Reasignación con sobrecosto > 10 %: aprueba Compras",
+        "Reasignación con sobrecosto ≤ 10 %: aprueba Compras",
         1,
         null,
         null,
         "purchasing",
+        Map.of("overcost_pct_lte", 10));
+    add(
+        "reassign_purchase_order",
+        "Reasignación con sobrecosto > 10 %: aprueba Gerencia",
+        1,
+        null,
+        null,
+        "manager",
         Map.of("overcost_pct_gt", 10));
     add(
         "cancel_purchase_order",
