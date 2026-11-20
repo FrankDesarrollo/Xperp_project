@@ -50,7 +50,7 @@
 		const media = window.matchMedia('(prefers-color-scheme: dark)');
 		const bump = () => themeVersion++;
 		const attr = new MutationObserver(bump);
-		void import('echarts').then((echarts) => {
+		void import('./echarts').then((echarts) => {
 			if (disposed) return;
 			chart = echarts.init(el, undefined, { renderer: 'svg' });
 			observer.observe(el);

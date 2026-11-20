@@ -17,9 +17,11 @@
 <style>
 	.empty {
 		text-align: center;
-		padding: var(--space-7) var(--space-4);
-		border: 1px dashed var(--color-border);
+		padding: var(--space-7) var(--space-5);
+		border: 1px solid var(--color-border);
 		border-radius: var(--radius-lg);
+		background: var(--color-surface);
+		box-shadow: var(--shadow-sm);
 		color: var(--color-text-muted);
 	}
 

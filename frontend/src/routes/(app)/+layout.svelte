@@ -33,6 +33,7 @@
 	import { live } from '$lib/stores/live.svelte';
 	import { notifications } from '$lib/stores/notifications.svelte';
 	import { theme } from '$lib/stores/theme.svelte';
+	import { approvals } from '$lib/stores/approvals.svelte';
 	import { canAccess, sectionFor, type Section } from '$lib/utils/permissions';
 	import { assistant, ASSISTANT_SUGGESTIONS } from '$lib/stores/assistant.svelte';
 	import AssistantChat from '$lib/components/domain/AssistantChat.svelte';
@@ -44,36 +45,66 @@
 
 	let { children } = $props();
 
-	const menu = [
-		{ href: '/tablero', label: 'Tablero', section: 'tablero', icon: Gauge },
-		{ href: '/inventario', label: 'Inventario', section: 'inventario', icon: Boxes },
-		{ href: '/ventas', label: 'Ventas', section: 'ventas', icon: Receipt },
-		{ href: '/compras', label: 'Compras', section: 'compras', icon: ShoppingCart },
-		{ href: '/bodega', label: 'Bodega', section: 'bodega', icon: Warehouse },
-		{ href: '/despachos', label: 'Despachos', section: 'despachos', icon: Truck },
+	const groups = [
 		{
-			href: '/ia/decisiones',
-			label: 'IA · Decisiones',
-			section: 'ia/decisiones',
-			icon: ScrollText
+			label: 'Operación',
+			items: [
+				{ href: '/tablero', label: 'Tablero', section: 'tablero', icon: Gauge },
+				{ href: '/inventario', label: 'Inventario', section: 'inventario', icon: Boxes },
+				{ href: '/ventas', label: 'Ventas', section: 'ventas', icon: Receipt },
+				{ href: '/compras', label: 'Compras', section: 'compras', icon: ShoppingCart },
+				{ href: '/bodega', label: 'Bodega', section: 'bodega', icon: Warehouse },
+				{ href: '/despachos', label: 'Despachos', section: 'despachos', icon: Truck }
+			]
 		},
 		{
-			href: '/ia/aprobaciones',
-			label: 'IA · Aprobaciones',
-			section: 'ia/aprobaciones',
-			icon: ClipboardCheck
+			label: 'Inteligencia artificial',
+			items: [
+				{
+					href: '/ia/aprobaciones',
+					label: 'Aprobaciones',
+					section: 'ia/aprobaciones',
+					icon: ClipboardCheck
+				},
+				{ href: '/ia/decisiones', label: 'Decisiones', section: 'ia/decisiones', icon: ScrollText },
+				{ href: '/ia/politicas', label: 'Políticas', section: 'ia/politicas', icon: ShieldCheck },
+				{ href: '/asistente', label: 'Asistente', section: 'asistente', icon: MessageSquare }
+			]
 		},
-		{ href: '/ia/politicas', label: 'IA · Políticas', section: 'ia/politicas', icon: ShieldCheck },
-		{ href: '/asistente', label: 'Asistente', section: 'asistente', icon: MessageSquare },
-		{ href: '/simulacion', label: 'Simulación', section: 'simulacion', icon: Timer },
-		{ href: '/configuracion', label: 'Configuración', section: 'configuracion', icon: Settings }
+		{
+			label: 'Sistema',
+			items: [
+				{ href: '/simulacion', label: 'Simulación', section: 'simulacion', icon: Timer },
+				{
+					href: '/configuracion',
+					label: 'Configuración',
+					section: 'configuracion',
+					icon: Settings
+				}
+			]
+		}
 	] as const;
 
 	let ready = $state(false);
 	let loadError = $state<string | null>(null);
 	let showNotifications = $state(false);
 	let showMenu = $state(false);
-	let visible = $derived(menu.filter((m) => canAccess(auth.role, m.section as Section)));
+	let visible = $derived(
+		groups
+			.map((g) => ({
+				label: g.label,
+				items: g.items.filter((m) => canAccess(auth.role, m.section as Section))
+			}))
+			.filter((g) => g.items.length > 0)
+	);
+	let initials = $derived(
+		(auth.user?.full_name ?? '')
+			.split(' ')
+			.filter(Boolean)
+			.slice(0, 2)
+			.map((w) => w[0]?.toUpperCase())
+			.join('')
+	);
 	let mode = $derived(AI_MODE[clock.aiMode] ?? { label: 'IA activa', tone: 'success' as const });
 	// Una ruta de una sección que el rol no puede ver muestra «sin acceso» en vez de fallar a medias.
 	let section = $derived(sectionFor(page.url.pathname));
@@ -88,6 +119,7 @@
 			clock.apply(await unwrap(api.GET('/simulation/clock')));
 			await notifications.load();
 			live.start(auth.token!);
+			if (canAccess(auth.role, 'ia/aprobaciones')) approvals.start();
 			ready = true;
 		} catch (e) {
 			// Solo un 401 cierra la sesión. Una petición abortada (el usuario se fue de la página)
@@ -128,6 +160,7 @@
 		}, 10_000);
 		return () => {
 			clearInterval(timer);
+			approvals.stop();
 			live.stop();
 		};
 	});
@@ -162,34 +195,56 @@
 		{/if}
 		<nav id="main-menu" class="sidebar" class:open={showMenu} aria-label="Menú principal">
 			<a class="brand" href={resolve('/tablero')}>
-				<span class="logo" aria-hidden="true">X</span>
-				<span>
+				<span class="logo" aria-hidden="true">
+					<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+						<path
+							d="M5 5l14 14M19 5L5 19"
+							stroke="currentColor"
+							stroke-width="2.6"
+							stroke-linecap="round"
+						/>
+					</svg>
+				</span>
+				<span class="brand-text">
 					<strong>Xperp</strong>
-					<small class="text-muted">La Ceiba S.A.S.</small>
+					<small>Distribuidora La Ceiba</small>
 				</span>
 			</a>
-			<ul>
-				{#each visible as item (item.href)}
-					{@const Icon = item.icon}
-					<li>
-						<a
-							href={resolve(item.href)}
-							aria-current={page.url.pathname.startsWith(item.href) ? 'page' : undefined}
-							onclick={() => (showMenu = false)}
-						>
-							<Icon size={18} />
-							{item.label}
-						</a>
-					</li>
+			<div class="groups">
+				{#each visible as group (group.label)}
+					<div class="group">
+						<span class="group-label">{group.label}</span>
+						<ul>
+							{#each group.items as item (item.href)}
+								{@const Icon = item.icon}
+								<li>
+									<a
+										href={resolve(item.href)}
+										aria-current={page.url.pathname.startsWith(item.href) ? 'page' : undefined}
+										onclick={() => (showMenu = false)}
+									>
+										<Icon size={17} strokeWidth={1.9} aria-hidden="true" />
+										<span class="item-label">{item.label}</span>
+										{#if item.href === '/ia/aprobaciones' && approvals.pending > 0}
+											<span class="nav-count" aria-label="{approvals.pending} pendientes"
+												>{approvals.pending}</span
+											>
+										{/if}
+									</a>
+								</li>
+							{/each}
+						</ul>
+					</div>
 				{/each}
-			</ul>
+			</div>
 			<div class="user">
-				<div>
-					<strong class="small">{auth.user?.full_name}</strong>
-					<span class="text-muted small">{ROLE_LABEL[auth.user?.role ?? ''] ?? ''}</span>
+				<span class="avatar" aria-hidden="true">{initials}</span>
+				<div class="who">
+					<strong>{auth.user?.full_name}</strong>
+					<span>{ROLE_LABEL[auth.user?.role ?? ''] ?? ''}</span>
 				</div>
 				<button class="icon" onclick={logout} aria-label="Cerrar sesión" title="Cerrar sesión">
-					<LogOut size={18} />
+					<LogOut size={17} />
 				</button>
 			</div>
 		</nav>
@@ -327,7 +382,7 @@
 <style>
 	.shell {
 		display: grid;
-		grid-template-columns: var(--sidebar-width) 1fr;
+		grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
 		grid-template-rows: var(--topbar-height) 1fr;
 		grid-template-areas:
 			'sidebar topbar'
@@ -335,94 +390,193 @@
 		min-height: 100dvh;
 	}
 
+	/* ---------- Menú lateral ---------- */
 	.sidebar {
 		grid-area: sidebar;
-		padding: var(--space-4) var(--space-3);
-		background: var(--color-surface);
-		border-right: 1px solid var(--color-border);
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-4);
+		gap: var(--space-5);
+		padding: var(--space-4) var(--space-3) var(--space-3);
+		background: var(--color-surface);
+		border-right: 1px solid var(--color-border);
 		position: sticky;
 		top: 0;
 		height: 100dvh;
 		overflow-y: auto;
+		scrollbar-width: thin;
 	}
 
 	.brand {
 		display: flex;
 		align-items: center;
 		gap: var(--space-3);
-		text-decoration: none;
+		padding: var(--space-1) var(--space-2);
 		color: var(--color-text);
-		padding: 0 var(--space-2);
+		text-decoration: none;
 	}
 
-	.brand span:last-child {
+	.brand-text {
 		display: grid;
+		line-height: 1.2;
+	}
+
+	.brand-text strong {
+		font-size: var(--text-md);
+		letter-spacing: var(--tracking-tight);
+	}
+
+	.brand-text small {
+		font-size: var(--text-xs);
+		color: var(--color-text-muted);
 	}
 
 	.logo {
-		width: 2.25rem;
-		height: 2.25rem;
-		border-radius: var(--radius-md);
-		background: var(--color-primary);
-		color: var(--color-on-primary);
 		display: grid;
 		place-items: center;
-		font-weight: var(--weight-bold);
+		width: 2rem;
+		height: 2rem;
+		border-radius: var(--radius-md);
+		background: linear-gradient(140deg, var(--color-primary), var(--color-primary-hover));
+		color: var(--color-on-primary);
+		box-shadow:
+			inset 0 1px 0 rgb(255 255 255 / 0.18),
+			var(--shadow-sm);
 	}
 
-	.sidebar ul {
-		list-style: none;
-		margin: 0;
-		padding: 0;
+	.groups {
 		display: grid;
-		gap: 2px;
+		gap: var(--space-5);
 		flex: 1;
 		align-content: start;
 	}
 
-	.sidebar a[href] {
+	.group-label {
+		display: block;
+		padding: 0 var(--space-3) var(--space-2);
+		font-size: 0.6875rem;
+		font-weight: var(--weight-semibold);
+		letter-spacing: var(--tracking-wide);
+		text-transform: uppercase;
+		color: var(--color-text-subtle);
+	}
+
+	.sidebar ul {
+		display: grid;
+		gap: 1px;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.sidebar ul a[href] {
+		position: relative;
 		display: flex;
 		align-items: center;
 		gap: var(--space-3);
-		padding: var(--space-2) var(--space-3);
+		padding: 0.4375rem var(--space-3);
 		border-radius: var(--radius-md);
-		color: var(--color-text);
-		text-decoration: none;
+		color: var(--color-text-muted);
 		font-size: var(--text-sm);
+		font-weight: var(--weight-medium);
+		text-decoration: none;
+		transition:
+			background var(--duration-fast) var(--ease-out),
+			color var(--duration-fast) var(--ease-out);
 	}
 
-	.sidebar ul a:hover {
+	.sidebar ul a[href]:hover {
 		background: var(--color-surface-muted);
+		color: var(--color-text);
 	}
 
 	.sidebar ul a[aria-current='page'] {
+		background: var(--color-surface-muted);
+		color: var(--color-text);
+	}
+
+	.sidebar ul a[aria-current='page']::before {
+		content: '';
+		position: absolute;
+		left: calc(var(--space-3) * -1 + 1px);
+		top: 0.4rem;
+		bottom: 0.4rem;
+		width: 2px;
+		border-radius: 0 2px 2px 0;
 		background: var(--color-primary);
-		color: var(--color-on-primary);
+	}
+
+	.sidebar ul a[aria-current='page'] :global(svg) {
+		color: var(--color-primary);
+	}
+
+	.item-label {
+		flex: 1;
+	}
+
+	.nav-count {
+		min-width: 1.25rem;
+		padding: 0 0.375rem;
+		border-radius: var(--radius-full);
+		background: var(--color-warning-bg);
+		color: var(--color-warning);
+		font-size: 0.6875rem;
+		font-weight: var(--weight-semibold);
+		line-height: 1.25rem;
+		text-align: center;
+		font-variant-numeric: tabular-nums;
 	}
 
 	.user {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
-		gap: var(--space-2);
-		padding: var(--space-3) var(--space-2) 0;
-		border-top: 1px solid var(--color-border);
+		gap: var(--space-3);
+		padding: var(--space-3) var(--space-2) var(--space-1);
+		border-top: 1px solid var(--color-border-subtle);
 	}
 
-	.user div {
+	.avatar {
+		flex: none;
 		display: grid;
+		place-items: center;
+		width: 2rem;
+		height: 2rem;
+		border-radius: var(--radius-full);
+		background: var(--color-primary-soft);
+		color: var(--color-primary);
+		font-size: var(--text-xs);
+		font-weight: var(--weight-semibold);
 	}
 
+	.who {
+		display: grid;
+		flex: 1;
+		min-width: 0;
+		line-height: 1.3;
+	}
+
+	.who strong {
+		font-size: var(--text-sm);
+		font-weight: var(--weight-semibold);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.who span {
+		font-size: var(--text-xs);
+		color: var(--color-text-muted);
+	}
+
+	/* ---------- Barra superior ---------- */
 	.topbar {
 		grid-area: topbar;
 		display: flex;
 		align-items: center;
 		gap: var(--space-3);
-		padding: 0 var(--space-5);
-		background: var(--color-surface);
+		padding: 0 var(--space-6);
+		background: color-mix(in srgb, var(--color-bg) 82%, transparent);
+		backdrop-filter: saturate(160%) blur(10px);
+		-webkit-backdrop-filter: saturate(160%) blur(10px);
 		border-bottom: 1px solid var(--color-border);
 		position: sticky;
 		top: 0;
@@ -433,35 +587,54 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
+		padding: 0.25rem var(--space-2) 0.25rem var(--space-3);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-full);
+		background: var(--color-surface);
+		color: var(--color-text-muted);
+		font-size: var(--text-sm);
+	}
+
+	.clock .mono {
+		color: var(--color-text);
+		font-weight: var(--weight-medium);
 	}
 
 	.live {
 		display: inline-flex;
 		align-items: center;
-		gap: var(--space-1);
+		gap: 0.375rem;
 		color: var(--color-text-muted);
 	}
 
 	.live .dot {
-		width: 8px;
-		height: 8px;
+		width: 7px;
+		height: 7px;
 		border-radius: var(--radius-full);
 		background: var(--color-warning);
 	}
 
 	.live.on .dot {
 		background: var(--color-success);
+		box-shadow: 0 0 0 3px var(--color-success-bg);
 	}
 
 	.icon {
+		position: relative;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 2.25rem;
+		height: 2.25rem;
+		padding: 0;
 		border: none;
+		border-radius: var(--radius-md);
 		background: transparent;
 		color: var(--color-text-muted);
-		padding: var(--space-2);
-		border-radius: var(--radius-md);
 		cursor: pointer;
-		display: inline-flex;
-		position: relative;
+		transition:
+			background var(--duration-fast) var(--ease-out),
+			color var(--duration-fast) var(--ease-out);
 	}
 
 	.icon:hover {
@@ -477,6 +650,101 @@
 		display: none;
 	}
 
+	.notif {
+		position: relative;
+	}
+
+	.count {
+		position: absolute;
+		top: 3px;
+		right: 2px;
+		min-width: 16px;
+		padding: 0 4px;
+		border-radius: var(--radius-full);
+		background: var(--color-danger);
+		color: var(--color-surface);
+		font-size: 0.625rem;
+		font-weight: var(--weight-semibold);
+		line-height: 16px;
+		text-align: center;
+		box-shadow: 0 0 0 2px var(--color-bg);
+	}
+
+	.panel {
+		position: absolute;
+		right: 0;
+		top: calc(100% + var(--space-2));
+		width: min(380px, 90vw);
+		max-height: 70vh;
+		overflow-y: auto;
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-lg);
+		animation: pop var(--duration-base) var(--ease-out);
+		transform-origin: top right;
+	}
+
+	.panel-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: var(--space-3) var(--space-4);
+		border-bottom: 1px solid var(--color-border-subtle);
+	}
+
+	.panel ul {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.panel li button {
+		display: grid;
+		gap: 2px;
+		width: 100%;
+		padding: var(--space-3) var(--space-4);
+		border: none;
+		border-bottom: 1px solid var(--color-border-subtle);
+		background: transparent;
+		text-align: left;
+		cursor: pointer;
+		transition: background var(--duration-fast) var(--ease-out);
+	}
+
+	.panel li button:hover {
+		background: var(--color-surface-hover);
+	}
+
+	.panel li.unread button {
+		background: var(--color-primary-soft);
+	}
+
+	.pad {
+		margin: 0;
+		padding: var(--space-4);
+	}
+
+	.link {
+		border: none;
+		background: none;
+		color: var(--color-primary);
+		font-weight: var(--weight-medium);
+		cursor: pointer;
+	}
+
+	/* ---------- Contenido ---------- */
+	.content {
+		grid-area: content;
+		width: 100%;
+		max-width: 1480px;
+		min-width: 0;
+		margin-inline: auto;
+		padding: var(--space-6);
+		/* Espacio para que el botón «Preguntar a la IA» no tape el final de la página */
+		padding-bottom: calc(var(--space-7) + var(--space-6));
+	}
+
 	.denied {
 		display: grid;
 		justify-items: start;
@@ -485,8 +753,8 @@
 	}
 
 	.denied h1 {
-		font-size: var(--text-xl);
 		margin: 0;
+		font-size: var(--text-xl);
 	}
 
 	.denied p {
@@ -501,108 +769,31 @@
 		display: inline-flex;
 		align-items: center;
 		gap: var(--space-2);
-		min-height: 3rem;
-		padding: var(--space-3) var(--space-4);
-		border: none;
+		padding: 0.625rem var(--space-4) 0.625rem var(--space-3);
+		border: 1px solid color-mix(in srgb, var(--color-ai) 30%, var(--color-border));
 		border-radius: var(--radius-full);
-		background: var(--color-ai);
-		color: var(--color-surface);
-		font-weight: var(--weight-medium);
+		background: var(--color-surface);
+		color: var(--color-ai);
+		font-size: var(--text-sm);
+		font-weight: var(--weight-semibold);
 		box-shadow: var(--shadow-lg);
 		cursor: pointer;
+		transition:
+			transform var(--duration-base) var(--ease-out),
+			background var(--duration-base) var(--ease-out);
 	}
 
 	.ask-ai:hover {
-		filter: brightness(1.08);
-	}
-
-	.notif {
-		position: relative;
-	}
-
-	.count {
-		position: absolute;
-		top: 0;
-		right: 0;
-		background: var(--color-danger);
-		color: var(--color-surface);
-		font-size: 0.625rem;
-		border-radius: var(--radius-full);
-		padding: 0 4px;
-		min-width: 16px;
-		text-align: center;
-	}
-
-	.panel {
-		position: absolute;
-		right: 0;
-		top: calc(100% + var(--space-2));
-		width: min(380px, 90vw);
-		max-height: 70vh;
-		overflow-y: auto;
-		background: var(--color-surface);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-lg);
-		box-shadow: var(--shadow-lg);
-	}
-
-	.panel-head {
-		display: flex;
-		justify-content: space-between;
-		padding: var(--space-3) var(--space-4);
-		border-bottom: 1px solid var(--color-border);
-	}
-
-	.panel ul {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-	}
-
-	.panel li button {
-		width: 100%;
-		text-align: left;
-		display: grid;
-		gap: 2px;
-		padding: var(--space-3) var(--space-4);
-		border: none;
-		border-bottom: 1px solid var(--color-border);
-		background: transparent;
-		cursor: pointer;
-	}
-
-	.panel li.unread button {
-		background: var(--color-info-bg);
-	}
-
-	.pad {
-		padding: var(--space-4);
-		margin: 0;
-	}
-
-	.link {
-		border: none;
-		background: none;
-		color: var(--color-primary);
-		cursor: pointer;
-	}
-
-	.content {
-		grid-area: content;
-		padding: var(--space-5) var(--space-6);
-		/* Espacio para que el botón «Preguntar a la IA» no tape el final de la página */
-		padding-bottom: calc(var(--space-7) + var(--space-6));
-		min-width: 0;
-		max-width: 1440px;
-		width: 100%;
+		transform: translateY(-2px);
+		background: var(--color-ai-bg);
 	}
 
 	.loading {
-		min-height: 100dvh;
 		display: grid;
 		place-content: center;
 		justify-items: center;
 		gap: var(--space-3);
+		min-height: 100dvh;
 		padding: var(--space-4);
 		text-align: center;
 	}
@@ -611,9 +802,16 @@
 		margin: 0;
 	}
 
+	@keyframes pop {
+		from {
+			opacity: 0;
+			transform: scale(0.97) translateY(-4px);
+		}
+	}
+
 	@media (max-width: 900px) {
 		.shell {
-			grid-template-columns: 1fr;
+			grid-template-columns: minmax(0, 1fr);
 			grid-template-areas:
 				'topbar'
 				'content';
@@ -629,7 +827,7 @@
 			/* Oculto también para el teclado y el lector de pantalla mientras está cerrado */
 			visibility: hidden;
 			transition:
-				transform var(--duration-base),
+				transform var(--duration-base) var(--ease-out),
 				visibility 0s linear var(--duration-base);
 			box-shadow: var(--shadow-lg);
 		}
@@ -637,7 +835,7 @@
 		.sidebar.open {
 			transform: none;
 			visibility: visible;
-			transition: transform var(--duration-base);
+			transition: transform var(--duration-base) var(--ease-out);
 		}
 
 		.sidebar ul a[href] {
@@ -648,15 +846,13 @@
 			display: block;
 			position: fixed;
 			inset: 0;
-			background: var(--color-overlay);
 			z-index: calc(var(--z-drawer) - 1);
+			background: var(--color-overlay);
 		}
 
 		.icon {
-			min-width: 2.75rem;
-			min-height: 2.75rem;
-			align-items: center;
-			justify-content: center;
+			width: 2.75rem;
+			height: 2.75rem;
 		}
 
 		.menu-toggle {
@@ -664,6 +860,7 @@
 		}
 
 		.topbar {
+			min-width: 0;
 			padding: 0 var(--space-3);
 			gap: var(--space-2);
 		}
@@ -673,13 +870,10 @@
 			display: none;
 		}
 
-		.topbar {
-			min-width: 0;
-		}
-
 		.content {
-			min-width: 0;
 			overflow-x: hidden;
+			padding: var(--space-5) var(--space-4);
+			padding-bottom: calc(var(--space-7) + var(--space-5));
 		}
 	}
 

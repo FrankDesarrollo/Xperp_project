@@ -10,11 +10,11 @@ export const ROLE_LABEL: Record<string, string> = {
 	viewer: 'Consulta'
 };
 
-export const STOCK_STATUS: Record<string, { label: string; tone: Tone; icon: string }> = {
-	stockout: { label: 'Quiebre', tone: 'danger', icon: '⛔' },
-	low: { label: 'Bajo', tone: 'warning', icon: '▼' },
-	ok: { label: 'Normal', tone: 'success', icon: '●' },
-	over: { label: 'Exceso', tone: 'info', icon: '▲' }
+export const STOCK_STATUS: Record<string, { label: string; tone: Tone }> = {
+	stockout: { label: 'Quiebre', tone: 'danger' },
+	low: { label: 'Bajo', tone: 'warning' },
+	ok: { label: 'Normal', tone: 'success' },
+	over: { label: 'Exceso', tone: 'info' }
 };
 
 export const SALES_STATUS: Record<string, { label: string; tone: Tone }> = {

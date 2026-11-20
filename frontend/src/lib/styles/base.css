@@ -12,6 +12,10 @@ html {
 
 body {
 	margin: 0;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	text-rendering: optimizeLegibility;
+	font-feature-settings: 'cv11', 'ss01';
 	min-height: 100dvh;
 	font-family: var(--font-sans);
 	font-size: var(--text-md);
@@ -30,6 +34,12 @@ h3 {
 
 h1 {
 	font-size: var(--text-2xl);
+	letter-spacing: var(--tracking-tight);
+}
+
+::selection {
+	background: var(--color-primary-soft);
+	color: var(--color-text);
 }
 
 h2 {
@@ -51,6 +61,7 @@ a {
 :focus-visible {
 	outline: 2px solid var(--color-focus);
 	outline-offset: 2px;
+	border-radius: var(--radius-sm);
 }
 
 button,

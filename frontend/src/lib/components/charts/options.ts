@@ -13,11 +13,17 @@ export interface LineSeries {
 	area?: boolean;
 }
 
+/** Color hex con transparencia (#rrggbb + aa); otros formatos quedan igual. */
+function fade(color: string, alpha: string): string {
+	return /^#[0-9a-f]{6}$/i.test(color) ? color + alpha : color;
+}
+
 /** Serie temporal de una o pocas series en un solo eje. */
 export function lineOption(
 	t: ChartTheme,
 	series: LineSeries[],
-	valueKind: 'money' | 'units' | 'ratio' = 'units'
+	valueKind: 'money' | 'units' | 'ratio' = 'units',
+	opts: { animate?: boolean; smooth?: boolean } = {}
 ): EChartsOption {
 	const fmt = (v: number) =>
 		valueKind === 'money'
@@ -27,7 +33,9 @@ export function lineOption(
 				: formatNumber(v);
 	const dates = Array.from(new Set(series.flatMap((s) => s.points.map((p) => p.date)))).sort();
 	return {
-		animation: false,
+		animation: !!opts.animate,
+		animationDuration: 1200,
+		animationEasing: 'cubicOut',
 		grid: { left: 8, right: 16, top: series.length > 1 ? 32 : 12, bottom: 8, containLabel: true },
 		legend:
 			series.length > 1
@@ -70,9 +78,25 @@ export function lineOption(
 				data: dates.map((d) => map.get(d) ?? null),
 				showSymbol: false,
 				symbolSize: 8,
+				smooth: opts.smooth ? 0.35 : false,
 				lineStyle: { width: 2, type: s.dashed ? 'dashed' : 'solid', color },
 				itemStyle: { color },
-				areaStyle: s.area ? { color, opacity: 0.08 } : undefined,
+				areaStyle: s.area
+					? {
+							color: {
+								type: 'linear',
+								x: 0,
+								y: 0,
+								x2: 0,
+								y2: 1,
+								colorStops: [
+									{ offset: 0, color: fade(color ?? t.series[0] ?? '#16825c', '55') },
+									{ offset: 1, color: fade(color ?? t.series[0] ?? '#16825c', '00') }
+								]
+							},
+							opacity: 1
+						}
+					: undefined,
 				connectNulls: false
 			};
 		})

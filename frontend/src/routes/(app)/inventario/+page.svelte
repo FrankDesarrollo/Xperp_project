@@ -14,7 +14,7 @@
 		Warehouse
 	} from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
-	import { live } from '$lib/stores/live.svelte';
+	import { liveRefresh } from '$lib/utils/live-refresh';
 	import { toasts } from '$lib/stores/toasts.svelte';
 	import StockBadge from '$lib/components/domain/StockBadge.svelte';
 	import StatusBadge from '$lib/components/domain/StatusBadge.svelte';
@@ -253,20 +253,15 @@
 			}
 			if (page.url.searchParams.get('id')) tab = 'transfers';
 		})();
-		let timer: ReturnType<typeof setTimeout> | null = null;
 		void recLoader.run(loadRecommendations);
-		const off = live.on('inventory.changed', () => {
-			if (timer) return;
-			timer = setTimeout(() => {
-				timer = null;
+		return liveRefresh(
+			['inventory.changed'],
+			() => {
 				void stockLoader.run(load);
 				void recLoader.run(loadRecommendations);
-			}, 4000);
-		});
-		return () => {
-			off();
-			if (timer) clearTimeout(timer);
-		};
+			},
+			{ delay: 4000 }
+		);
 	});
 
 	$effect(() => {

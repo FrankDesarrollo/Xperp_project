@@ -38,19 +38,25 @@
 		justify-content: center;
 		gap: var(--space-2);
 		border-radius: var(--radius-md);
-		border: 1px solid var(--color-border);
+		border: 1px solid var(--color-border-strong);
 		background: var(--color-surface);
 		color: var(--color-text);
-		font-weight: var(--weight-medium);
+		font-weight: var(--weight-semibold);
+		box-shadow: var(--shadow-sm);
 		cursor: pointer;
 		transition:
-			background var(--duration-fast),
-			border-color var(--duration-fast);
+			background var(--duration-fast) var(--ease-out),
+			border-color var(--duration-fast) var(--ease-out),
+			transform var(--duration-fast) var(--ease-out);
 		white-space: nowrap;
 	}
 
 	.btn:hover:not(:disabled) {
 		background: var(--color-surface-muted);
+	}
+
+	.btn:active:not(:disabled) {
+		transform: translateY(1px);
 	}
 
 	.btn:disabled {
@@ -64,6 +70,7 @@
 	}
 
 	.md {
+		min-height: 2.25rem;
 		padding: var(--space-2) var(--space-4);
 		font-size: var(--text-sm);
 	}
@@ -87,11 +94,12 @@
 	.ghost {
 		background: transparent;
 		border-color: transparent;
+		box-shadow: none;
 	}
 
 	.danger {
 		color: var(--color-danger);
-		border-color: var(--color-danger);
+		border-color: color-mix(in srgb, var(--color-danger) 40%, var(--color-border));
 	}
 
 	.danger:hover:not(:disabled) {

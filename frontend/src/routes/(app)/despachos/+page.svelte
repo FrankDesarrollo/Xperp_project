@@ -5,7 +5,7 @@
 	import { FileText } from '@lucide/svelte';
 	import { api, unwrap, openPdf } from '$lib/api/client';
 	import type { Carrier, Shipment } from '$lib/api/types';
-	import { live } from '$lib/stores/live.svelte';
+	import { liveRefresh } from '$lib/utils/live-refresh';
 	import { toasts } from '$lib/stores/toasts.svelte';
 	import StatusBadge from '$lib/components/domain/StatusBadge.svelte';
 	import Field from '$lib/components/ui/Field.svelte';
@@ -54,18 +54,7 @@
 
 	onMount(() => {
 		void loader.run(fetchAll);
-		let timer: ReturnType<typeof setTimeout> | null = null;
-		const off = live.on('shipment.changed', () => {
-			if (timer || pageNo !== 1) return;
-			timer = setTimeout(() => {
-				timer = null;
-				void load();
-			}, 3000);
-		});
-		return () => {
-			off();
-			if (timer) clearTimeout(timer);
-		};
+		return liveRefresh(['shipment.changed'], () => void load(), { when: () => pageNo === 1 });
 	});
 </script>
 

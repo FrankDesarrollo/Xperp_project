@@ -15,7 +15,7 @@
 		Warehouse
 	} from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
-	import { live } from '$lib/stores/live.svelte';
+	import { liveRefresh } from '$lib/utils/live-refresh';
 	import { toasts } from '$lib/stores/toasts.svelte';
 	import StatusBadge from '$lib/components/domain/StatusBadge.svelte';
 	import DecisionCard from '$lib/components/domain/DecisionCard.svelte';
@@ -194,10 +194,10 @@
 			const id = Number(page.url.searchParams.get('oc') ?? page.url.searchParams.get('id'));
 			if (id) void open(id);
 		});
-		const off = live.on('purchase_order.changed', () => {
-			if (pageNo === 1) void load();
+		return liveRefresh(['purchase_order.changed'], () => void load(), {
+			delay: 1500,
+			when: () => pageNo === 1
 		});
-		return off;
 	});
 
 	$effect(() => {

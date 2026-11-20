@@ -7,7 +7,7 @@
 	import { api, unwrap, ApiError } from '$lib/api/client';
 	import type { AiDecision, Customer, Product, SalesOrder, Warehouse } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
-	import { live } from '$lib/stores/live.svelte';
+	import { liveRefresh } from '$lib/utils/live-refresh';
 	import { toasts } from '$lib/stores/toasts.svelte';
 	import StatusBadge from '$lib/components/domain/StatusBadge.svelte';
 	import DecisionCard from '$lib/components/domain/DecisionCard.svelte';
@@ -152,18 +152,7 @@
 			const id = Number(page.url.searchParams.get('id'));
 			if (id) void open(id);
 		});
-		let timer: ReturnType<typeof setTimeout> | null = null;
-		const off = live.on('sale.created', () => {
-			if (timer || pageNo !== 1) return;
-			timer = setTimeout(() => {
-				timer = null;
-				void load();
-			}, 3000);
-		});
-		return () => {
-			off();
-			if (timer) clearTimeout(timer);
-		};
+		return liveRefresh(['sale.created'], () => void load(), { when: () => pageNo === 1 });
 	});
 
 	let canManage = $derived(auth.hasRole('admin', 'manager'));

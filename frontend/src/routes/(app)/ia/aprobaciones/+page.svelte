@@ -5,7 +5,8 @@
 	import { api, unwrap, ApiError } from '$lib/api/client';
 	import type { Approval } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
-	import { live } from '$lib/stores/live.svelte';
+	import { approvals } from '$lib/stores/approvals.svelte';
+	import { liveRefresh } from '$lib/utils/live-refresh';
 	import { toasts } from '$lib/stores/toasts.svelte';
 	import ApprovalCard from '$lib/components/domain/ApprovalCard.svelte';
 	import Tabs from '$lib/components/ui/Tabs.svelte';
@@ -61,6 +62,7 @@
 				toasts.success('Rechazada', a.decision.title ?? undefined);
 			}
 			await load();
+			void approvals.refresh();
 		} catch (e) {
 			toasts.error('No se pudo resolver', e instanceof ApiError ? e.message : undefined);
 		} finally {
@@ -74,10 +76,10 @@
 
 	onMount(() => {
 		void load();
-		const off = live.on('approval.requested', () => {
-			if (tab === 'pending') void load();
+		return liveRefresh(['approval.requested'], () => void load(), {
+			delay: 1000,
+			when: () => tab === 'pending'
 		});
-		return off;
 	});
 </script>
 
@@ -108,8 +110,8 @@
 				? 'No tienes aprobaciones pendientes'
 				: 'No hay aprobaciones en esta lista'}
 		>
-			Cuando una OC pase de $ 5.000.000, haya un traslado o un ajuste de inventario, la IA te lo
-			trae aquí.
+			Toda compra, reasignación, cancelación, traslado o ajuste de inventario que recomiende la IA
+			llega aquí con su impacto. Si nadie la decide en 24 horas simuladas, vence.
 		</EmptyState>
 	{:else}
 		<div class="list">

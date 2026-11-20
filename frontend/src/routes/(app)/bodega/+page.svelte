@@ -5,7 +5,7 @@
 	import { api, unwrap, ApiError } from '$lib/api/client';
 	import type { Warehouse, WarehouseTask } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
-	import { live } from '$lib/stores/live.svelte';
+	import { liveRefresh } from '$lib/utils/live-refresh';
 	import { toasts } from '$lib/stores/toasts.svelte';
 	import TaskCard from '$lib/components/domain/TaskCard.svelte';
 	import Tabs from '$lib/components/ui/Tabs.svelte';
@@ -115,19 +115,7 @@
 
 	onMount(() => {
 		void loader.run(fetchAll);
-		let timer: ReturnType<typeof setTimeout> | null = null;
-		const refresh = () => {
-			if (timer) return;
-			timer = setTimeout(() => {
-				timer = null;
-				void load();
-			}, 2500);
-		};
-		const offs = [live.on('task.created', refresh), live.on('task.changed', refresh)];
-		return () => {
-			offs.forEach((o) => o());
-			if (timer) clearTimeout(timer);
-		};
+		return liveRefresh(['task.created', 'task.changed'], () => void load(), { delay: 2500 });
 	});
 </script>
 

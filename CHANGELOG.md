@@ -10,6 +10,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 ### Agregado
 
+- **[docs]** `docs/cambios-de-frank.md`: explicación para el equipo de los cambios del ADR 0004 (backend) y del rediseño y rendimiento del frontend, con qué cambia, cómo probarlo y qué queda pendiente.
+
 - **[repo]** Esqueleto inicial del repositorio según la sección 5 de `AGENTS.md`: `contracts/`, `docs/`, `backend/`, `partners-mock/`, `frontend/`, `docker-compose.yml`, `.env.example`, `.editorconfig`, `.gitattributes` y `.gitignore`.
 - **[repo]** `CLAUDE.md`, que remite a `AGENTS.md`; este `CHANGELOG.md`; y la carpeta de ADR con `0001-stack.md` y `0002-esqueleto-del-repositorio.md`.
 - **[ci]** Workflows de GitHub Actions: `contracts.yml` (lint y bundle con Redocly), `backend.yml`, `partners-mock.yml` y `frontend.yml`. También la plantilla de PR y `CODEOWNERS`, con marcadores de usuario pendientes.
@@ -51,6 +53,14 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 - **[contracts]** `AiDecision.impact` con los esquemas `DecisionImpact` y `BudgetImpact`.
 
 ### Cambiado
+
+- **[frontend]** Sistema visual nuevo «grafito + esmeralda»: neutros puros sin tinte verde, acento esmeralda solo en acciones y estados activos, violeta para la IA; tema claro y oscuro con los mismos tokens (`--color-surface-hover`, `--color-border-strong`, `--color-primary-soft`, `--color-text-subtle`).
+- **[frontend]** Menú lateral agrupado (Operación, Inteligencia artificial, Sistema), ítem activo con barra esmeralda en vez de relleno, contador de aprobaciones pendientes (`stores/approvals.svelte.ts`, el mismo conteo que usa el Tablero), avatar con iniciales y barra superior translúcida. Login rediseñado con el mensaje del ADR 0004. Botones, campos con anillo de foco, insignias, pestañas (sin la barra de desplazamiento suelta), tablas y estados vacíos unificados.
+- **[frontend]** Rendimiento: ECharts se importa por módulos (`charts/echarts.ts`: líneas, barras, rejilla, tooltip y leyenda) y su archivo baja de 1,13 MB a 544 KB. `utils/live-refresh.ts` agrupa ráfagas de eventos en una sola recarga y no pide nada con la pestaña oculta; lo usan Tablero, Inventario, Ventas, Compras, Despachos, Bodega y Aprobaciones. Compras dejaba de agrupar y recargaba con cada evento.
+- **[frontend]** Aprobaciones: el texto del estado vacío refleja el ADR 0004 (toda compra, reasignación, cancelación, traslado o ajuste pasa por aquí).
+- **[frontend]** Rediseño del Tablero: franja «Requiere atención» con lo accionable, 4 indicadores principales (`MetricCard`) con tendencia o avance, indicadores secundarios en una franja, salud del inventario en barra segmentada, presupuesto con barras y marca del 85 %, alertas agrupadas por tipo y bitácora como línea de tiempo. Animaciones con `svelte/motion` y CSS (entrada escalonada, números que cuentan, sparklines y barras que crecen, ventas en vivo que entran deslizándose), sin dependencias nuevas y respetando `prefers-reduced-motion`. Las tendencias solo usan días cerrados.
+- **[frontend]** Tokens nuevos de movimiento (`--ease-out`, `--duration-slow`, `--stagger`), tipografía (`--text-3xl`, `--tracking-*`) y superficies (`--color-border-subtle`, `--color-track`); sombras más suaves. Utilidades `.reveal`, `.eyebrow` y `.tabular`.
+- **[frontend]** El semáforo de inventario usa íconos Lucide en vez de símbolos y emoji.
 
 - **[backend]** Flyway con `out-of-order: true`: con la numeración por bloques (12.2), una migración nueva de A (`V170`) llega después de las de B ya aplicadas (`V510`) y sin esto el backend no arranca.
 - **[ai]** La IA recomienda y una persona aprueba ([ADR 0004](docs/decisions/0004-ia-recomienda-persona-aprueba.md)). Crear, reasignar o cancelar OC, trasladar, ajustar inventario y aplicar planes de presupuesto siempre esperan aprobación, aunque una política diga nivel 2 o 3. `PolicyAdminService` rechaza subirlas de nivel y `V170` corrige las políticas guardadas. Guías, retenciones de pedidos anómalos, alertas, tareas de bodega y parámetros de reorden siguen siendo automáticos.

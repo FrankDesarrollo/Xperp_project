@@ -38,11 +38,23 @@
 	.field :global(select),
 	.field :global(textarea) {
 		padding: var(--space-2) var(--space-3);
-		border: 1px solid var(--color-border);
+		border: 1px solid var(--color-border-strong);
 		border-radius: var(--radius-md);
 		background: var(--color-surface);
-		min-height: 2.375rem;
+		box-shadow: var(--shadow-sm);
+		min-height: 2.5rem;
 		width: 100%;
+		transition:
+			border-color var(--duration-fast) var(--ease-out),
+			box-shadow var(--duration-fast) var(--ease-out);
+	}
+
+	.field :global(input:focus),
+	.field :global(select:focus),
+	.field :global(textarea:focus) {
+		outline: none;
+		border-color: var(--color-primary);
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 22%, transparent);
 	}
 
 	.field :global(textarea) {
