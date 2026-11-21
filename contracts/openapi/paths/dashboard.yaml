@@ -63,3 +63,38 @@ series:
               $ref: ../schemas/dashboard.yaml#/Series
       "400":
         $ref: ../schemas/common.yaml#/responses/BadRequest
+
+finance:
+  get:
+    tags: [dashboard]
+    operationId: getFinanceOverview
+    summary: Resumen financiero del periodo
+    description: >-
+      Ingresos, costo, margen, fletes, compras, cuentas por pagar, presupuesto proyectado y capital
+      en inventario. Lo calcula el sistema con consultas, sin llamar a la IA.
+    parameters:
+      - name: from
+        in: query
+        required: false
+        description: Por defecto, el primer día del mes simulado
+        schema:
+          type: string
+          format: date
+      - name: to
+        in: query
+        required: false
+        description: Por defecto, el día simulado actual
+        schema:
+          type: string
+          format: date
+    responses:
+      "200":
+        description: Resumen financiero
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/dashboard.yaml#/FinanceOverview
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+      "403":
+        $ref: ../schemas/common.yaml#/responses/Forbidden

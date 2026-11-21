@@ -9,6 +9,7 @@
 	import { live } from '$lib/stores/live.svelte';
 	import { toasts } from '$lib/stores/toasts.svelte';
 	import DecisionCard from '$lib/components/domain/DecisionCard.svelte';
+	import AiUsagePanel from '$lib/components/domain/AiUsagePanel.svelte';
 	import Drawer from '$lib/components/ui/Drawer.svelte';
 	import Field from '$lib/components/ui/Field.svelte';
 	import Pagination from '$lib/components/ui/Pagination.svelte';
@@ -94,6 +95,8 @@
 		<p>Bitácora completa: qué vio, qué alternativas tenía, qué eligió, por qué y quién la aprobó</p>
 	</div>
 </div>
+
+<AiUsagePanel />
 
 <div class="filters">
 	<Field label="Tipo">

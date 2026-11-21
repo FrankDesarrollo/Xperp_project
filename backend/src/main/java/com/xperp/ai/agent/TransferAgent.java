@@ -3,7 +3,6 @@ package com.xperp.ai.agent;
 import com.xperp.ai.forecasting.ForecastService;
 import com.xperp.ai.policies.ActionGateway;
 import com.xperp.ai.policies.ActionProposal;
-import com.xperp.ai.policies.Impact;
 import com.xperp.ai.policies.PolicyEngine;
 import com.xperp.catalog.api.CatalogService;
 import com.xperp.catalog.api.ProductDto;
@@ -152,24 +151,6 @@ class TransferAgent {
                             "compromete presupuesto y tarda el tiempo de entrega del proveedor")))
                 .payload(payload)
                 .reasoning(text.text())
-                .impact(
-                    Impact.of(
-                        null,
-                        "No compromete presupuesto de compras: usa inventario propio; el único costo"
-                            + " es el flete interno con Envíos Cordillera.",
-                        "Mueve %s und de %s a %s: cubre %d días en destino y deja %s en origen."
-                            .formatted(
-                                Fmt.units(qty),
-                                donor.warehouseCode(),
-                                target.warehouseCode(),
-                                horizon,
-                                Fmt.days(donorAfter)),
-                        target.stock().available() <= 0
-                            ? "Si no se aprueba, %s sigue en quiebre en %s y se pierden ventas."
-                                .formatted(p.sku(), target.warehouseCode())
-                            : "Si no se aprueba, %s puede quedar en quiebre en %s."
-                                .formatted(p.sku(), target.warehouseCode()),
-                        target.stock().available() <= 0 ? Impact.HIGH : Impact.MEDIUM))
                 .confidence(0.85)
                 .llm(text.trace())
                 .ref("product", p.id(), p.sku())

@@ -133,6 +133,8 @@ paths:
     $ref: paths/ai.yaml#/decision-revert
   /approvals:
     $ref: paths/ai.yaml#/approvals
+  /approvals/batch-approve:
+    $ref: paths/ai.yaml#/approvals-batch-approve
   /approvals/{id}/approve:
     $ref: paths/ai.yaml#/approval-approve
   /approvals/{id}/reject:
@@ -149,6 +151,10 @@ paths:
     $ref: paths/ai.yaml#/forecasts
   /ai/recommendations:
     $ref: paths/ai.yaml#/recommendations
+  /ai/usage:
+    $ref: paths/ai.yaml#/usage
+  /ai/financial-reviews:
+    $ref: paths/ai.yaml#/financial-reviews
   # assistant
   /assistant/messages:
     $ref: paths/assistant.yaml#/messages
@@ -159,6 +165,8 @@ paths:
     $ref: paths/dashboard.yaml#/kpis
   /dashboard/series:
     $ref: paths/dashboard.yaml#/series
+  /dashboard/finance:
+    $ref: paths/dashboard.yaml#/finance
   # notifications y stream
   /notifications:
     $ref: paths/platform.yaml#/notifications
@@ -317,10 +325,8 @@ components:
     # ai
     DecisionReference:
       $ref: schemas/ai.yaml#/DecisionReference
-    DecisionImpact:
-      $ref: schemas/ai.yaml#/DecisionImpact
-    BudgetImpact:
-      $ref: schemas/ai.yaml#/BudgetImpact
+    ImpactItem:
+      $ref: schemas/ai.yaml#/ImpactItem
     AiDecision:
       $ref: schemas/ai.yaml#/AiDecision
     AiDecisionPage:
@@ -331,6 +337,12 @@ components:
       $ref: schemas/ai.yaml#/ApprovalPage
     ApprovalDecisionRequest:
       $ref: schemas/ai.yaml#/ApprovalDecisionRequest
+    ApprovalBatchRequest:
+      $ref: schemas/ai.yaml#/ApprovalBatchRequest
+    ApprovalBatchFailure:
+      $ref: schemas/ai.yaml#/ApprovalBatchFailure
+    ApprovalBatchResult:
+      $ref: schemas/ai.yaml#/ApprovalBatchResult
     AutonomyPolicy:
       $ref: schemas/ai.yaml#/AutonomyPolicy
     ScoringWeights:
@@ -343,6 +355,18 @@ components:
       $ref: schemas/ai.yaml#/SeriesPoint
     ForecastSeries:
       $ref: schemas/ai.yaml#/ForecastSeries
+    TriggerCounts:
+      $ref: schemas/ai.yaml#/TriggerCounts
+    AiUsageDay:
+      $ref: schemas/ai.yaml#/AiUsageDay
+    AiUsage:
+      $ref: schemas/ai.yaml#/AiUsage
+    FinancialFinding:
+      $ref: schemas/ai.yaml#/FinancialFinding
+    FinancialReview:
+      $ref: schemas/ai.yaml#/FinancialReview
+    FinancialReviewPage:
+      $ref: schemas/ai.yaml#/FinancialReviewPage
     # assistant
     AssistantMessageRequest:
       $ref: schemas/assistant.yaml#/AssistantMessageRequest
@@ -363,6 +387,10 @@ components:
       $ref: schemas/dashboard.yaml#/Kpis
     Series:
       $ref: schemas/dashboard.yaml#/Series
+    BudgetProjection:
+      $ref: schemas/dashboard.yaml#/BudgetProjection
+    FinanceOverview:
+      $ref: schemas/dashboard.yaml#/FinanceOverview
     # notifications, simulation y webhooks
     Notification:
       $ref: schemas/platform.yaml#/Notification

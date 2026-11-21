@@ -104,6 +104,12 @@ approvals:
         description: Solo las que puede decidir el rol de la sesión
         schema:
           type: boolean
+      - name: decision_type
+        in: query
+        required: false
+        description: "Filtra por tipo de decisión: replenishment, carrier_selection, po_exception..."
+        schema:
+          type: string
       - $ref: ../schemas/common.yaml#/parameters/Page
       - $ref: ../schemas/common.yaml#/parameters/Size
     responses:
@@ -360,3 +366,101 @@ recommendations:
                 $ref: ../schemas/ai.yaml#/StockRecommendation
       "400":
         $ref: ../schemas/common.yaml#/responses/BadRequest
+
+approvals-batch-approve:
+  post:
+    tags: [ai]
+    operationId: batchApproveApprovals
+    summary: Aprueba varias propuestas de una vez
+    description: >-
+      Cada aprobación se decide por separado con las mismas reglas que una sola: la que no le
+      corresponde al rol, ya se resolvió o falla al ejecutarse queda en `failed` sin frenar a las
+      demás.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/ai.yaml#/ApprovalBatchRequest
+    responses:
+      "200":
+        description: Resultado por aprobación
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/ai.yaml#/ApprovalBatchResult
+      "400":
+        $ref: ../schemas/common.yaml#/responses/BadRequest
+      "403":
+        $ref: ../schemas/common.yaml#/responses/Forbidden
+
+usage:
+  get:
+    tags: [ai]
+    operationId: getAiUsage
+    summary: Cuándo y cuánto se usó la IA
+    description: >-
+      Decisiones por tipo de disparador (evento, condición, solicitud o revisión programada), cuántas
+      resolvieron las reglas y cuántas el LLM, llamadas, tokens y costo estimado.
+    parameters:
+      - name: from
+        in: query
+        required: false
+        description: Por defecto, el primer día del mes simulado
+        schema:
+          type: string
+          format: date
+      - name: to
+        in: query
+        required: false
+        description: Por defecto, el día simulado actual
+        schema:
+          type: string
+          format: date
+    responses:
+      "200":
+        description: Uso de la IA
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/ai.yaml#/AiUsage
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+
+financial-reviews:
+  get:
+    tags: [ai]
+    operationId: listFinancialReviews
+    summary: Revisiones financieras de la IA, de la más reciente a la más antigua
+    parameters:
+      - $ref: ../schemas/common.yaml#/parameters/Page
+      - $ref: ../schemas/common.yaml#/parameters/Size
+    responses:
+      "200":
+        description: Página de revisiones
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/ai.yaml#/FinancialReviewPage
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+      "403":
+        $ref: ../schemas/common.yaml#/responses/Forbidden
+  post:
+    tags: [ai]
+    operationId: runFinancialReview
+    summary: Analiza las finanzas ahora, a pedido de una persona
+    description: >-
+      Las reglas calculan las cifras y los hallazgos; el LLM, si está configurado, solo redacta el
+      resumen. No ejecuta nada: las recomendaciones las decide una persona.
+    responses:
+      "201":
+        description: Revisión hecha
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/ai.yaml#/FinancialReview
+      "401":
+        $ref: ../schemas/common.yaml#/responses/Unauthorized
+      "403":
+        $ref: ../schemas/common.yaml#/responses/Forbidden

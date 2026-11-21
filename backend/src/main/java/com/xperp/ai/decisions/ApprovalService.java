@@ -15,7 +15,9 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -82,7 +84,8 @@ public class ApprovalService {
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public long request(long decisionId, String role, String title, BigDecimal amount) {
+  public long request(
+      long decisionId, String decisionType, String role, String title, BigDecimal amount) {
     Instant now = Instant.now(clock);
     Approval a = new Approval();
     a.setAiDecisionId(decisionId);
@@ -92,7 +95,8 @@ public class ApprovalService {
     a.setExpiresAt(now.plus(TTL));
     approvals.save(a);
     events.publishEvent(
-        new ApprovalRequested(TenantContext.require(), a.getId(), decisionId, role, title, amount));
+        new ApprovalRequested(
+            TenantContext.require(), a.getId(), decisionId, decisionType, role, title, amount));
     Map<String, Object> data = new LinkedHashMap<>();
     data.put("id", a.getId());
     data.put("ai_decision_id", decisionId);
@@ -103,11 +107,13 @@ public class ApprovalService {
   }
 
   @Transactional(readOnly = true)
-  public PageResult<Approval> list(String status, Set<String> roles, Integer page, Integer size) {
+  public PageResult<Approval> list(
+      String status, Set<String> roles, String decisionType, Integer page, Integer size) {
     String st = status == null || status.isBlank() ? null : status;
+    String type = decisionType == null || decisionType.isBlank() ? null : decisionType;
     return PageResult.of(
         approvals.search(
-            st, roles, PageResult.pageable(page, size, Sort.by(Sort.Direction.DESC, "id"))),
+            st, roles, type, PageResult.pageable(page, size, Sort.by(Sort.Direction.DESC, "id"))),
         a -> a);
   }
 
@@ -117,7 +123,42 @@ public class ApprovalService {
   }
 
   public static boolean canDecide(AuthenticatedUser user, String requestedRole) {
-    return DECIDERS.getOrDefault(requestedRole, Set.of("admin")).contains(user.role());
+    return roleCanDecide(user.role(), requestedRole);
+  }
+
+  public static boolean roleCanDecide(String role, String requestedRole) {
+    return DECIDERS.getOrDefault(requestedRole, Set.of("admin")).contains(role);
+  }
+
+  /** Resultado de aprobar varias de una vez: cada una se decide por separado. */
+  public record BatchResult(List<Long> approved, Map<Long, String> failed, BigDecimal amount) {}
+
+  /**
+   * Aprueba varias propuestas. Cada una pasa por las mismas reglas que {@link #approve}: la que no
+   * le corresponde al rol, ya se resolvió o falla al ejecutarse queda en {@code failed} sin frenar
+   * a las demás.
+   */
+  public BatchResult approveAll(List<Long> ids, Long userId, String role, String comment) {
+    List<Long> approved = new ArrayList<>();
+    Map<Long, String> failed = new LinkedHashMap<>();
+    BigDecimal amount = BigDecimal.ZERO;
+    for (Long id : new LinkedHashSet<>(ids)) {
+      try {
+        approve(id, userId, role, comment);
+        AiDecision d = decisions.findById(get(id).getAiDecisionId()).orElseThrow();
+        if ("failed".equals(d.getStatus())) {
+          failed.put(id, d.getResultMessage());
+          continue;
+        }
+        approved.add(id);
+        if (d.getAmount() != null) {
+          amount = amount.add(d.getAmount());
+        }
+      } catch (BusinessException e) {
+        failed.put(id, e.getMessage());
+      }
+    }
+    return new BatchResult(approved, failed, amount);
   }
 
   /** Aprueba y ejecuta la acción. Lo llama una persona o el aprobador virtual. */

@@ -6,6 +6,7 @@ public record ApprovalRequested(
     long companyId,
     long approvalId,
     long decisionId,
+    String decisionType,
     String requestedRole,
     String title,
     BigDecimal amount) {}

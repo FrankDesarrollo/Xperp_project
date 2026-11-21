@@ -1,8 +1,8 @@
 package com.xperp.ai.agent;
 
+import com.xperp.ai.decisions.AiDecisionRepository;
 import com.xperp.ai.policies.ActionGateway;
 import com.xperp.ai.policies.ActionProposal;
-import com.xperp.ai.policies.Impact;
 import com.xperp.ai.scoring.CarrierScorer;
 import com.xperp.inventory.api.InventoryService;
 import com.xperp.logistics.api.CarrierQuoteDto;
@@ -22,7 +22,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Alistamiento (fulfillment, nivel 3), retención por anomalía (demand_anomaly, nivel 2) y selección
- * de transportadora (carrier_selection, nivel 2). AGENTS.md, 4.1 y 8.4.
+ * de transportadora (carrier_selection: la guía cuesta flete y la aprueba una persona). AGENTS.md,
+ * 4.1 y 8.4; ADR 0004.
  */
 @Component
 class FulfillmentAgents {
@@ -33,6 +34,7 @@ class FulfillmentAgents {
   private final UserDirectory users;
   private final LlmGateway llm;
   private final ActionGateway gateway;
+  private final AiDecisionRepository decisions;
 
   FulfillmentAgents(
       SalesService sales,
@@ -40,13 +42,15 @@ class FulfillmentAgents {
       InventoryService inventory,
       UserDirectory users,
       LlmGateway llm,
-      ActionGateway gateway) {
+      ActionGateway gateway,
+      AiDecisionRepository decisions) {
     this.sales = sales;
     this.logistics = logistics;
     this.inventory = inventory;
     this.users = users;
     this.llm = llm;
     this.gateway = gateway;
+    this.decisions = decisions;
   }
 
   /** Pedido creado o liberado: tareas de alistamiento y empaque para el bodeguero. */
@@ -125,14 +129,6 @@ class FulfillmentAgents {
             .payload(Map.of("sales_order_id", order.id()))
             .reasoning(text.text())
             .confidence(0.8)
-            .impact(
-                Impact.of(
-                    null,
-                    "Deja en espera una venta de %s hasta que alguien la revise."
-                        .formatted(Fmt.money(order.total())),
-                    "No reserva stock: el inventario sigue disponible para los demás clientes.",
-                    "Si nadie la libera, el cliente no recibe el pedido.",
-                    Impact.MEDIUM))
             .llm(text.trace())
             .ref("sales_order", order.id(), order.number())
             .build());
@@ -143,6 +139,10 @@ class FulfillmentAgents {
     SalesOrderDto order = sales.order(salesOrderId);
     if (!"packed".equals(order.status()) || logistics.hasShipment(salesOrderId)) {
       return;
+    }
+    if (decisions.existsByDecisionTypeAndTriggerRefAndStatusIn(
+        "carrier_selection", order.number(), List.of("pending_approval", "executing"))) {
+      return; // la guía ya espera aprobación
     }
     List<CarrierQuoteDto> quotes = logistics.quote(salesOrderId);
     if (quotes.isEmpty()) {
@@ -245,17 +245,6 @@ class FulfillmentAgents {
             .payload(payload)
             .reasoning(reasoning)
             .amount(Money.round(BigDecimal.valueOf(chosen.candidate().cost())))
-            .impact(
-                Impact.of(
-                    Money.round(BigDecimal.valueOf(chosen.candidate().cost())),
-                    "Flete de %s con %s."
-                        .formatted(
-                            Fmt.money(BigDecimal.valueOf(chosen.candidate().cost())),
-                            chosen.candidate().carrierCode()),
-                    "Entrega estimada en %s días en %s."
-                        .formatted(chosen.candidate().etaDays(), ctx.destinationCity()),
-                    null,
-                    Impact.LOW))
             .llm(trace)
             .ref("sales_order", order.id(), order.number())
             .build());

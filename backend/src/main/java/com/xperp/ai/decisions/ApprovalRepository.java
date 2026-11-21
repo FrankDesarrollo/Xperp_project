@@ -17,9 +17,14 @@ public interface ApprovalRepository extends JpaRepository<Approval, Long> {
       select a from Approval a
       where (:status is null or a.status = :status)
         and a.requestedRole in :roles
+        and (:type is null or a.aiDecisionId in
+             (select d.id from AiDecision d where d.decisionType = :type))
       """)
   Page<Approval> search(
-      @Param("status") String status, @Param("roles") Collection<String> roles, Pageable pageable);
+      @Param("status") String status,
+      @Param("roles") Collection<String> roles,
+      @Param("type") String decisionType,
+      Pageable pageable);
 
   List<Approval> findByStatusAndExpiresAtBefore(String status, Instant now);
 

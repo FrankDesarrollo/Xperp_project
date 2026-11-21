@@ -74,6 +74,19 @@ public class MockAssistant {
       text = excess(q);
     } else if (containsAny(q, "agota", "quiebre", "se acaba", "faltan", "escase", "agotar")) {
       text = lowStock();
+    } else if (containsAny(
+        q,
+        "finanz",
+        "dinero",
+        "plata",
+        "caja",
+        "rentab",
+        "por pagar",
+        "cuentas por pagar",
+        "ingreso",
+        "capital",
+        "flujo")) {
+      text = finance();
     } else if (containsAny(q, "gastado", "gasto", "presupuesto", "llevamos")) {
       text = budget(q);
     } else if (containsAny(q, "aprobacion", "aprobar", "pendientes de aprob")) {
@@ -292,6 +305,39 @@ public class MockAssistant {
                             r.get("status"),
                             r.get("expected_at"))));
     return sb.toString().trim();
+  }
+
+  /** Finanzas del mes: cifras y hallazgos de las reglas. No ejecuta nada. */
+  @SuppressWarnings("unchecked")
+  private String finance() {
+    Map<String, Object> f = tools.getFinancialOverview();
+    StringBuilder sb =
+        new StringBuilder(
+            ("Del %s al %s: ventas %s, margen bruto %s (%s %%) y fletes %s. Cuentas por pagar"
+                    + " abiertas %s (%s vencen en 7 días). Inventario a costo %s, con %s en"
+                    + " exceso.")
+                .formatted(
+                    f.get("desde"),
+                    f.get("hasta"),
+                    f.get("ventas"),
+                    f.get("margen_bruto"),
+                    f.get("margen_pct"),
+                    f.get("fletes"),
+                    f.get("por_pagar"),
+                    f.get("por_pagar_7_dias"),
+                    f.get("inventario_costo"),
+                    f.get("inventario_exceso")));
+    List<Map<String, Object>> findings = (List<Map<String, Object>>) f.get("hallazgos");
+    if (findings.isEmpty()) {
+      sb.append("\nNo hay hallazgos: presupuesto, pagos, inventario, fletes y margen en rango.");
+    } else {
+      sb.append("\nLo que encontraron las reglas:");
+      for (Map<String, Object> x : findings) {
+        sb.append("\n• ").append(x.get("hallazgo")).append(". ").append(x.get("recomendacion"));
+      }
+    }
+    sb.append("\nEl análisis completo está en Finanzas. Las decisiones las toma una persona.");
+    return sb.toString();
   }
 
   private String kpis() {

@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw';
 import type { components } from '$lib/api/schema';
 import { API_URL } from '$lib/api/client';
+import { decision } from './platform';
 
 type S = components['schemas'];
 
@@ -82,7 +83,127 @@ function answer(question: string): string {
 	return 'Puedo responder preguntas de solo lectura sobre la operación. Por ejemplo: «¿qué me recomiendas reponer?».';
 }
 
+// Bandeja con una OC y una guía por aprobar; la aprobación en lote las resuelve en memoria.
+let approvals: S['Approval'][] = [
+	{
+		id: 1,
+		ai_decision_id: 1,
+		requested_role: 'purchasing',
+		status: 'pending',
+		created_at: '2026-11-01T06:00:00-05:00',
+		expires_at: '2026-11-02T06:00:00-05:00',
+		decision
+	},
+	{
+		id: 2,
+		ai_decision_id: 2,
+		requested_role: 'manager',
+		status: 'pending',
+		created_at: '2026-11-01T11:00:00-05:00',
+		expires_at: '2026-11-02T11:00:00-05:00',
+		decision: {
+			...decision,
+			id: 2,
+			decision_type: 'carrier_selection',
+			action_type: 'create_shipment',
+			title: 'Despachar PV-2026-000041 con TRP-01',
+			trigger_event: 'sales_order_packed',
+			trigger_kind: 'event',
+			amount: '24300.00',
+			impact: [
+				{ label: 'Flete', value: '24300.00', unit: 'cop', effect: 'cost' },
+				{ label: 'Del valor del pedido', value: '6.1', unit: 'pct', effect: 'info' }
+			],
+			reasoning: 'PV-2026-000041 a Palmira (14,0 kg): Rápido Valle Logística gana con 0,92 puntos.',
+			references: []
+		}
+	}
+];
+
+const conditionReview: S['FinancialReview'] = {
+	id: 90,
+	sim_time: '2026-11-22T00:00:00-05:00',
+	trigger_event: 'financial_condition',
+	trigger_kind: 'condition',
+	period_from: '2026-11-01',
+	period_to: '2026-11-22',
+	summary:
+		'Cuidado personal se proyecta al 108,9 % del presupuesto: faltarían $ 6.230.000 al cierre. Gerencia tiene que decidir si amplía el presupuesto o aplaza la reposición de lo que tiene más cobertura.',
+	findings: [
+		{
+			code: 'budget_overrun_projected',
+			severity: 'medium',
+			title: 'Presupuesto de Cuidado personal: se proyecta al 108,9 % al cierre del mes',
+			detail: 'Lleva 87,6 % ($ 61.300.000 de $ 70.000.000) el día 22 de 30.',
+			recommendation:
+				'Prioriza las OC de Cuidado personal por margen y días de cobertura, y decide si se amplía el presupuesto o se aplaza la reposición de lo que tiene más cobertura.',
+			impact: '6230000.00',
+			link: '/finanzas'
+		}
+	],
+	llm_used: false
+};
+const reviews: S['FinancialReview'][] = [conditionReview];
+
 export const aiHandlers = [
+	http.get(`${API_URL}/approvals`, ({ request }) => {
+		const params = new URL(request.url).searchParams;
+		const status = params.get('status');
+		const type = params.get('decision_type');
+		const items = approvals.filter(
+			(a) => (!status || a.status === status) && (!type || a.decision.decision_type === type)
+		);
+		return HttpResponse.json<S['ApprovalPage']>({ items, total: items.length, page: 1, size: 25 });
+	}),
+	http.post(`${API_URL}/approvals/batch-approve`, async ({ request }) => {
+		const body = (await request.json()) as S['ApprovalBatchRequest'];
+		const approved = approvals.filter((a) => body.ids.includes(a.id) && a.status === 'pending');
+		approvals = approvals.map((a) =>
+			approved.includes(a) ? { ...a, status: 'approved', comment: body.comment ?? null } : a
+		);
+		const amount = approved.reduce((sum, a) => sum + Number(a.decision.amount ?? 0), 0);
+		return HttpResponse.json<S['ApprovalBatchResult']>({
+			approved: approved.map((a) => a.id),
+			failed: [],
+			approved_amount: amount.toFixed(2)
+		});
+	}),
+	http.get(`${API_URL}/ai/usage`, () =>
+		HttpResponse.json<S['AiUsage']>({
+			from: '2026-11-01',
+			to: '2026-11-22',
+			decisions_total: 3184,
+			by_trigger: { event: 2905, condition: 61, request: 4, schedule: 214 },
+			decided_by_rules: 3151,
+			decided_with_llm: 33,
+			llm_calls: 0,
+			llm_limit_per_day: 30,
+			tokens_in: 0,
+			tokens_out: 0,
+			estimated_cost_usd: null,
+			assistant_questions: 12,
+			autonomous_financial_actions: 0,
+			by_day: []
+		})
+	),
+	http.get(`${API_URL}/ai/financial-reviews`, () =>
+		HttpResponse.json<S['FinancialReviewPage']>({
+			items: reviews,
+			total: reviews.length,
+			page: 1,
+			size: 6
+		})
+	),
+	http.post(`${API_URL}/ai/financial-reviews`, () => {
+		const review: S['FinancialReview'] = {
+			...conditionReview,
+			id: 100 + reviews.length,
+			trigger_event: 'user_request',
+			trigger_kind: 'request'
+		};
+		reviews.unshift(review);
+		return HttpResponse.json(review, { status: 201 });
+	}),
 	http.get(`${API_URL}/ai/recommendations`, ({ request }) => {
 		const params = new URL(request.url).searchParams;
 		const product = Number(params.get('product_id')) || null;

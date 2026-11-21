@@ -4,6 +4,7 @@ import {
 	formatCopShort,
 	formatDate,
 	formatDateTime,
+	formatImpact,
 	formatPct,
 	formatTime
 } from './format';
@@ -47,5 +48,16 @@ describe('formatos adicionales', () => {
 	it('formatea fechas sin hora y horas', () => {
 		expect(formatDate('2026-11-15')).toBe('15/11/2026');
 		expect(formatTime('2026-11-04T15:15:00Z')).toBe('10:15');
+	});
+});
+
+describe('formatImpact', () => {
+	it('muestra cada cifra del impacto según su unidad', () => {
+		expect(formatImpact('1872000.00', 'cop')).toBe('$ 1.872.000');
+		expect(formatImpact('10.0', 'pct')).toBe('10,0 %');
+		expect(formatImpact('0.5', 'days')).toBe('0,5 días');
+		expect(formatImpact('1', 'days')).toBe('1,0 día');
+		expect(formatImpact('300', 'units')).toBe('300 und');
+		expect(formatImpact('abc', 'otra')).toBe('abc');
 	});
 });

@@ -26,8 +26,7 @@ public record ActionProposal(
     Map<String, Object> attributes,
     List<Ref> references,
     LlmTrace llm,
-    ForcedApproval forcedApproval,
-    Impact impact) {
+    ForcedApproval forcedApproval) {
 
   /** Entidad relacionada, para filtrar la bitácora y enlazar desde la interfaz. */
   public record Ref(String type, long id, String label) {}
@@ -66,7 +65,6 @@ public record ActionProposal(
     private final List<Ref> refs = new ArrayList<>();
     private LlmTrace llm = LlmTrace.NONE;
     private ForcedApproval forced;
-    private Impact impact;
 
     private Builder(String decisionType, String actionType) {
       this.decisionType = decisionType;
@@ -134,12 +132,6 @@ public record ActionProposal(
       return this;
     }
 
-    /** Impacto económico y operativo que ve quien aprueba (ADR 0004). */
-    public Builder impact(Impact v) {
-      impact = v;
-      return this;
-    }
-
     public ActionProposal build() {
       return new ActionProposal(
           decisionType,
@@ -156,8 +148,7 @@ public record ActionProposal(
           attributes,
           List.copyOf(refs),
           llm,
-          forced,
-          impact);
+          forced);
     }
   }
 }

@@ -53,6 +53,7 @@ public class ActionGateway {
   private final DecisionRecorder recorder;
   private final ApprovalService approvals;
   private final AiUsageService usage;
+  private final ImpactAssessor impacts;
   private final Clock clock;
 
   ActionGateway(
@@ -61,18 +62,21 @@ public class ActionGateway {
       DecisionRecorder recorder,
       ApprovalService approvals,
       AiUsageService usage,
+      ImpactAssessor impacts,
       Clock clock) {
     this.policies = policies;
     this.executors = executors;
     this.recorder = recorder;
     this.approvals = approvals;
     this.usage = usage;
+    this.impacts = impacts;
     this.clock = clock;
   }
 
   public Outcome submit(ActionProposal p) {
     ActionExecutor executor = executors.get(p.actionType());
-    Map<String, Object> impact = impact(p);
+    // El impacto lo calcula el backend con sus datos, venga la propuesta de reglas o del LLM.
+    List<Map<String, Object>> impact = impacts.assess(p);
 
     // 1. Validación de negocio
     try {
@@ -122,7 +126,8 @@ public class ActionGateway {
       case PolicyEngine.PENDING_APPROVAL -> {
         try {
           ActionExecutor.Result prepared = executor.prepare(id, p.payload());
-          long approvalId = approvals.request(id, policy.approverRole(), p.title(), p.amount());
+          long approvalId =
+              approvals.request(id, p.decisionType(), policy.approverRole(), p.title(), p.amount());
           String message =
               "Esperando aprobación de "
                   + roleName(policy.approverRole())
@@ -144,22 +149,6 @@ public class ActionGateway {
         return new Outcome(id, policy.result(), initial, policy.reason(), Map.of());
       }
     }
-  }
-
-  /**
-   * Impacto que ve quien aprueba: el que calculó quien propuso (o solo el monto) más el efecto en
-   * el presupuesto de cada categoría si la acción gasta.
-   */
-  private Map<String, Object> impact(ActionProposal p) {
-    Impact impact = p.impact() != null ? p.impact() : Impact.fromAmount(p.amount());
-    if (PolicyEngine.SPENDING_ACTIONS.contains(p.actionType())) {
-      try {
-        impact = impact.withBudget(policies.budgetImpact(p));
-      } catch (RuntimeException e) {
-        log.warn("No se pudo calcular el efecto en el presupuesto: {}", e.getMessage());
-      }
-    }
-    return impact.toMap();
   }
 
   static String roleName(String role) {

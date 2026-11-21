@@ -307,6 +307,141 @@ class DashboardQueriesImpl implements DashboardQueries {
     return points.stream().filter(pt -> !Double.isNaN(pt.value())).toList();
   }
 
+  /** Días de cobertura a partir de los cuales una existencia cuenta como estancada (8.4). */
+  static final int SLOW_MOVER_DAYS = 60;
+
+  @Override
+  public FinanceSnapshot finance(LocalDate from, LocalDate to) {
+    MapSqlParameterSource p = params(from, to, null);
+    p.addValue("today", java.sql.Date.valueOf(to));
+    p.addValue("week", java.sql.Date.valueOf(to.plusDays(7)));
+    p.addValue("period", "%04d-%02d".formatted(to.getYear(), to.getMonthValue()));
+    p.addValue("slow", SLOW_MOVER_DAYS);
+
+    BigDecimal revenue =
+        money(
+            "select coalesce(sum(o.total),0) from sales_orders o where o.company_id = :c and "
+                + VALID_ORDER
+                + " and o.ordered_at >= :from and o.ordered_at < :to",
+            p);
+    BigDecimal cogs =
+        money(
+            """
+        select coalesce(sum(i.quantity_fulfilled * pr.cost),0)
+        from sales_order_items i join sales_orders o on o.id = i.sales_order_id
+        join products pr on pr.id = i.product_id
+        where o.company_id = :c and %s and o.ordered_at >= :from and o.ordered_at < :to
+        """
+                .formatted(VALID_ORDER),
+            p);
+    BigDecimal margin = revenue.subtract(cogs);
+    BigDecimal freight =
+        money(
+            "select coalesce(sum(s.cost),0) from shipments s where s.company_id = :c"
+                + " and s.status <> 'failed' and s.created_at >= :from and s.created_at < :to",
+            p);
+    BigDecimal lost =
+        money(
+            """
+        select coalesce(sum(l.quantity * pr.price),0)
+        from lost_sales l join products pr on pr.id = l.product_id
+        where l.company_id = :c and l.occurred_at >= :from and l.occurred_at < :to
+        """,
+            p);
+    Map<String, Object> payables =
+        jdbc.queryForMap(
+            """
+        select coalesce(sum(amount),0) as open,
+               coalesce(sum(amount) filter (where due_date >= :today and due_date <= :week),0) as due,
+               coalesce(sum(amount) filter (where due_date < :today),0) as overdue
+        from accounts_payable where company_id = :c and status = 'open'
+        """,
+            p);
+    Map<String, Object> stock =
+        jdbc.queryForMap(
+            """
+        select coalesce(sum(s.on_hand * pr.cost),0) as value,
+               coalesce(sum(greatest(s.on_hand - s.max_stock, 0) * pr.cost)
+                        filter (where s.max_stock > 0),0) as excess,
+               coalesce(sum(s.on_hand * pr.cost) filter (where s.on_hand > 0
+                        and (s.on_hand - s.reserved) > :slow * s.avg_daily_demand),0) as slow
+        from inventory s join products pr on pr.id = s.product_id
+        where s.company_id = :c
+        """,
+            p);
+
+    int daysInPeriod = to.lengthOfMonth();
+    int daysElapsed = to.getDayOfMonth();
+    int remaining = daysInPeriod - daysElapsed;
+    List<BudgetLine> budgets = new ArrayList<>();
+    // Proyección: lo usado más lo que se repondría al ritmo de la demanda (a costo) en los días que
+    // faltan. Repartir lo usado entre los días transcurridos exageraría el primer día del mes,
+    // cuando
+    // se compromete de golpe la compra inicial.
+    jdbc.query(
+        """
+        select c.id, c.code, c.name, b.amount, b.committed, b.spent,
+               coalesce((select sum(s.avg_daily_demand * pr.cost) from inventory s
+                         join products pr on pr.id = s.product_id
+                         where s.company_id = :c and pr.category_id = c.id), 0) as daily_cost
+        from budgets b join categories c on c.id = b.category_id
+        where b.company_id = :c and b.period = :period
+        order by c.code
+        """,
+        p,
+        rs -> {
+          BigDecimal amount = rs.getBigDecimal("amount");
+          BigDecimal committed = rs.getBigDecimal("committed");
+          BigDecimal spent = rs.getBigDecimal("spent");
+          BigDecimal used = committed.add(spent);
+          BigDecimal projected =
+              used.add(rs.getBigDecimal("daily_cost").multiply(BigDecimal.valueOf(remaining)));
+          budgets.add(
+              new BudgetLine(
+                  rs.getLong("id"),
+                  rs.getString("code"),
+                  rs.getString("name"),
+                  Money.round(amount),
+                  Money.round(committed),
+                  Money.round(spent),
+                  amount.signum() == 0 ? 0 : pct(used, amount),
+                  amount.signum() == 0 ? 0 : pct(projected, amount),
+                  Money.round(projected.subtract(amount).max(BigDecimal.ZERO))));
+        });
+    BigDecimal received = BigDecimal.ZERO;
+    BigDecimal committedTotal = BigDecimal.ZERO;
+    for (BudgetLine b : budgets) {
+      received = received.add(b.spent());
+      committedTotal = committedTotal.add(b.committed());
+    }
+    return new FinanceSnapshot(
+        from,
+        to,
+        daysElapsed,
+        daysInPeriod,
+        revenue,
+        cogs,
+        margin,
+        revenue.signum() == 0 ? 0 : pct(margin, revenue),
+        freight,
+        revenue.signum() == 0 ? 0 : pct(freight, revenue),
+        margin.subtract(freight),
+        received,
+        committedTotal,
+        lost,
+        decimal(payables.get("open")),
+        decimal(payables.get("due")),
+        decimal(payables.get("overdue")),
+        decimal(stock.get("value")),
+        decimal(stock.get("excess")),
+        decimal(stock.get("slow")),
+        budgets);
+  }
+
+  private static BigDecimal decimal(Object value) {
+    return Money.round(value == null ? BigDecimal.ZERO : new BigDecimal(value.toString()));
+  }
+
   private MapSqlParameterSource params(LocalDate from, LocalDate to, Long warehouseId) {
     Instant start = SimTime.startOfDay(from);
     Instant end = SimTime.startOfDay(to.plusDays(1));

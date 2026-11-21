@@ -42,5 +42,47 @@ public interface DashboardQueries {
 
   KpiSnapshot kpis(LocalDate from, LocalDate to, Long warehouseId);
 
+  /** Presupuesto de una categoría en el mes y su proyección al cierre. */
+  record BudgetLine(
+      long categoryId,
+      String categoryCode,
+      String categoryName,
+      BigDecimal amount,
+      BigDecimal committed,
+      BigDecimal spent,
+      double usedPct,
+      double projectedPct,
+      BigDecimal projectedOverrun) {}
+
+  /** Cifras financieras del periodo (ADR 0004). Las calcula el sistema con consultas, sin IA. */
+  record FinanceSnapshot(
+      LocalDate from,
+      LocalDate to,
+      int daysElapsed,
+      int daysInPeriod,
+      BigDecimal revenue,
+      BigDecimal costOfSales,
+      BigDecimal grossMargin,
+      double grossMarginPct,
+      BigDecimal freight,
+      double freightPct,
+      BigDecimal marginAfterFreight,
+      BigDecimal purchasesReceived,
+      BigDecimal purchasesCommitted,
+      BigDecimal lostSalesAmount,
+      BigDecimal payablesOpen,
+      BigDecimal payablesDue7d,
+      BigDecimal payablesOverdue,
+      BigDecimal inventoryValue,
+      BigDecimal inventoryExcessValue,
+      BigDecimal slowMoverValue,
+      List<BudgetLine> budgets) {}
+
+  /**
+   * Ingresos, costo, margen y fletes entre {@code from} y {@code to}; presupuesto, compras, cuentas
+   * por pagar e inventario al día {@code to}.
+   */
+  FinanceSnapshot finance(LocalDate from, LocalDate to);
+
   List<Point> series(String metric, LocalDate from, LocalDate to, Long warehouseId);
 }

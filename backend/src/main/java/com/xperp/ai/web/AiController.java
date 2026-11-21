@@ -1,33 +1,45 @@
 package com.xperp.ai.web;
 
+import com.xperp.ai.agent.FinancialAdvisor;
 import com.xperp.ai.agent.StockAdvisor;
 import com.xperp.ai.api.AiProperties;
 import com.xperp.ai.decisions.AiDecision;
 import com.xperp.ai.decisions.AiDecisionRef;
+import com.xperp.ai.decisions.AiUsageReport;
 import com.xperp.ai.decisions.AlertService;
 import com.xperp.ai.decisions.ApprovalService;
 import com.xperp.ai.decisions.DecisionService;
+import com.xperp.ai.decisions.TriggerKind;
 import com.xperp.ai.forecasting.ForecastService;
 import com.xperp.ai.policies.AiSettings;
 import com.xperp.ai.policies.AiSettingsService;
 import com.xperp.ai.policies.AiUsageService;
 import com.xperp.ai.policies.PolicyAdminService;
+import com.xperp.ai.policies.PolicyEngine;
 import com.xperp.ai.scoring.SupplierScorer;
 import com.xperp.shared.contract.api.AiApi;
 import com.xperp.shared.contract.model.AiDecisionPage;
+import com.xperp.shared.contract.model.AiUsage;
+import com.xperp.shared.contract.model.AiUsageDay;
 import com.xperp.shared.contract.model.Alert;
 import com.xperp.shared.contract.model.Approval;
+import com.xperp.shared.contract.model.ApprovalBatchFailure;
+import com.xperp.shared.contract.model.ApprovalBatchRequest;
+import com.xperp.shared.contract.model.ApprovalBatchResult;
 import com.xperp.shared.contract.model.ApprovalDecisionRequest;
 import com.xperp.shared.contract.model.ApprovalPage;
 import com.xperp.shared.contract.model.AutonomyPolicy;
-import com.xperp.shared.contract.model.BudgetImpact;
-import com.xperp.shared.contract.model.DecisionImpact;
 import com.xperp.shared.contract.model.DecisionReference;
+import com.xperp.shared.contract.model.FinancialFinding;
+import com.xperp.shared.contract.model.FinancialReview;
+import com.xperp.shared.contract.model.FinancialReviewPage;
 import com.xperp.shared.contract.model.ForecastSeries;
+import com.xperp.shared.contract.model.ImpactItem;
 import com.xperp.shared.contract.model.ReasonRequest;
 import com.xperp.shared.contract.model.ScoringWeights;
 import com.xperp.shared.contract.model.SeriesPoint;
 import com.xperp.shared.contract.model.StockRecommendation;
+import com.xperp.shared.contract.model.TriggerCounts;
 import com.xperp.shared.error.BusinessException;
 import com.xperp.shared.persistence.Money;
 import com.xperp.shared.persistence.PageResult;
@@ -38,12 +50,12 @@ import com.xperp.shared.time.SimTime;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
@@ -59,6 +71,8 @@ class AiController implements AiApi {
   private final AlertService alerts;
   private final ForecastService forecasts;
   private final StockAdvisor advisor;
+  private final FinancialAdvisor financial;
+  private final AiUsageReport usageReport;
   private final UserDirectory users;
   private final AiProperties properties;
   private final Clock clock;
@@ -72,6 +86,8 @@ class AiController implements AiApi {
       AlertService alerts,
       ForecastService forecasts,
       StockAdvisor advisor,
+      FinancialAdvisor financial,
+      AiUsageReport usageReport,
       UserDirectory users,
       AiProperties properties,
       Clock clock) {
@@ -83,6 +99,8 @@ class AiController implements AiApi {
     this.alerts = alerts;
     this.forecasts = forecasts;
     this.advisor = advisor;
+    this.financial = financial;
+    this.usageReport = usageReport;
     this.users = users;
     this.properties = properties;
     this.clock = clock;
@@ -124,11 +142,12 @@ class AiController implements AiApi {
 
   @Override
   public ResponseEntity<ApprovalPage> listApprovals(
-      String status, Boolean mine, Integer page, Integer size) {
+      String status, Boolean mine, String decisionType, Integer page, Integer size) {
     AuthenticatedUser user = CurrentUser.require();
     Set<String> roles =
         Boolean.TRUE.equals(mine) ? decidableRoles(user) : Set.of("purchasing", "manager", "admin");
-    PageResult<Approval> result = approvals.list(status, roles, page, size).map(this::toModel);
+    PageResult<Approval> result =
+        approvals.list(status, roles, decisionType, page, size).map(this::toModel);
     return ResponseEntity.ok(
         new ApprovalPage(result.items(), result.total(), result.page(), result.size()));
   }
@@ -154,11 +173,129 @@ class AiController implements AiApi {
 
   @Override
   @PreAuthorize("hasAnyRole('admin','manager','purchasing')")
+  public ResponseEntity<ApprovalBatchResult> batchApproveApprovals(ApprovalBatchRequest body) {
+    AuthenticatedUser user = CurrentUser.require();
+    ApprovalService.BatchResult r =
+        approvals.approveAll(body.getIds(), user.id(), user.role(), body.getComment());
+    return ResponseEntity.ok(
+        new ApprovalBatchResult()
+            .approved(r.approved())
+            .failed(
+                r.failed().entrySet().stream()
+                    .map(
+                        e ->
+                            new ApprovalBatchFailure()
+                                .id(e.getKey())
+                                .message(e.getValue() == null ? "Falló" : e.getValue()))
+                    .toList())
+            .approvedAmount(Money.format(Money.round(r.amount()))));
+  }
+
+  @Override
+  @PreAuthorize("hasAnyRole('admin','manager','purchasing')")
   public ResponseEntity<Approval> rejectApproval(Long id, ApprovalDecisionRequest body) {
     AuthenticatedUser user = CurrentUser.require();
     return ResponseEntity.ok(
         toModel(
             approvals.reject(id, user.id(), user.role(), body == null ? null : body.getComment())));
+  }
+
+  // ---------------------------------------------------------------- uso y finanzas
+
+  @Override
+  public ResponseEntity<AiUsage> getAiUsage(LocalDate from, LocalDate to) {
+    LocalDate today = SimTime.today(clock);
+    LocalDate t = to == null ? today : to;
+    LocalDate f = from == null ? t.withDayOfMonth(1) : from;
+    if (f.isAfter(t)) {
+      throw BusinessException.invalid("invalid_range", "La fecha inicial va antes de la final");
+    }
+    AiUsageReport.Report r = usageReport.report(f, t);
+    return ResponseEntity.ok(
+        new AiUsage()
+            .from(r.from())
+            .to(r.to())
+            .decisionsTotal(r.decisions())
+            .byTrigger(
+                new TriggerCounts()
+                    .event(r.byTrigger().get(TriggerKind.EVENT))
+                    .condition(r.byTrigger().get(TriggerKind.CONDITION))
+                    .request(r.byTrigger().get(TriggerKind.REQUEST))
+                    .schedule(r.byTrigger().get(TriggerKind.SCHEDULE)))
+            .decidedByRules(r.decidedByRules())
+            .decidedWithLlm(r.decidedWithLlm())
+            .llmCalls(r.llmCalls())
+            .llmLimitPerDay(r.llmLimitPerDay())
+            .tokensIn((int) Math.min(Integer.MAX_VALUE, r.tokensIn()))
+            .tokensOut((int) Math.min(Integer.MAX_VALUE, r.tokensOut()))
+            .estimatedCostUsd(
+                r.estimatedCostUsd() == null ? null : r.estimatedCostUsd().toPlainString())
+            .assistantQuestions(r.assistantQuestions())
+            .autonomousFinancialActions(r.autonomousFinancialActions())
+            .byDay(
+                r.byDay().stream()
+                    .map(
+                        d ->
+                            new AiUsageDay()
+                                .date(d.date())
+                                .decisions(d.decisions())
+                                .llmCalls(d.llmCalls())
+                                .tokens((int) Math.min(Integer.MAX_VALUE, d.tokens())))
+                    .toList()));
+  }
+
+  @Override
+  @PreAuthorize("hasAnyRole('admin','manager','purchasing','viewer')")
+  public ResponseEntity<FinancialReviewPage> listFinancialReviews(Integer page, Integer size) {
+    PageResult<FinancialReview> result =
+        decisions
+            .list(FinancialAdvisor.DECISION_TYPE, null, null, null, null, page, size)
+            .map(AiController::toReview);
+    return ResponseEntity.ok(
+        new FinancialReviewPage(result.items(), result.total(), result.page(), result.size()));
+  }
+
+  @Override
+  @PreAuthorize("hasAnyRole('admin','manager','purchasing','viewer')")
+  public ResponseEntity<FinancialReview> runFinancialReview() {
+    long id = financial.review("user_request");
+    return ResponseEntity.status(HttpStatus.CREATED).body(toReview(decisions.get(id)));
+  }
+
+  @SuppressWarnings("unchecked")
+  static FinancialReview toReview(DecisionService.View v) {
+    AiDecision d = v.decision();
+    Map<String, Object> payload = d.getProposedAction() == null ? Map.of() : d.getProposedAction();
+    Object rawFindings = payload.get("findings");
+    List<Map<String, Object>> findings =
+        rawFindings instanceof List<?> l ? (List<Map<String, Object>>) l : List.of();
+    LocalDate day = SimTime.dateOf(d.getSimTime());
+    return new FinancialReview()
+        .id(d.getId())
+        .simTime(SimTime.toOffset(d.getSimTime()))
+        .triggerEvent(d.getTriggerEvent())
+        .triggerKind(TriggerKind.of(d.getTriggerEvent()))
+        .periodFrom(date(payload.get("period_from"), day.withDayOfMonth(1)))
+        .periodTo(date(payload.get("period_to"), day))
+        .summary(String.valueOf(payload.getOrDefault("summary", d.getReasoning())))
+        .findings(
+            findings.stream()
+                .map(
+                    f ->
+                        new FinancialFinding()
+                            .code(String.valueOf(f.get("code")))
+                            .severity(String.valueOf(f.get("severity")))
+                            .title(String.valueOf(f.get("title")))
+                            .detail(String.valueOf(f.get("detail")))
+                            .recommendation(String.valueOf(f.get("recommendation")))
+                            .impact(f.get("impact") == null ? null : f.get("impact").toString())
+                            .link(f.get("link") == null ? null : f.get("link").toString()))
+                .toList())
+        .llmUsed(d.isLlmUsed());
+  }
+
+  private static LocalDate date(Object raw, LocalDate fallback) {
+    return raw == null ? fallback : LocalDate.parse(raw.toString());
   }
 
   // ---------------------------------------------------------------- políticas y ajustes
@@ -309,11 +446,13 @@ class AiController implements AiApi {
             d.getId(),
             d.getDecisionType(),
             d.getTriggerEvent(),
+            TriggerKind.of(d.getTriggerEvent()),
             d.getInputSnapshot(),
             d.getAlternatives(),
             d.getProposedAction(),
             d.getReasoning(),
             d.getConfidence().doubleValue(),
+            impact(d.getImpact()),
             d.getPolicyResult(),
             d.getStatus(),
             v.reversible(),
@@ -325,7 +464,6 @@ class AiController implements AiApi {
         .title(d.getTitle())
         .triggerRef(d.getTriggerRef())
         .amount(Money.format(d.getAmount()))
-        .impact(impact(d.getImpact()))
         .policyReason(d.getPolicyReason())
         .autonomyLevel(d.getAutonomyLevel())
         .resultMessage(d.getResultMessage())
@@ -341,38 +479,20 @@ class AiController implements AiApi {
         .latencyMs(d.getLatencyMs());
   }
 
-  /** Impacto guardado en jsonb → modelo del contrato; null en decisiones anteriores a V170. */
-  static DecisionImpact impact(Map<String, Object> m) {
-    if (m == null || m.isEmpty()) {
-      return null;
+  private static List<ImpactItem> impact(List<Map<String, Object>> items) {
+    if (items == null) {
+      return List.of();
     }
-    List<BudgetImpact> budget = new ArrayList<>();
-    if (m.get("budget") instanceof List<?> lines) {
-      for (Object o : lines) {
-        if (o instanceof Map<?, ?> b) {
-          Object pct = b.get("usage_pct_after");
-          budget.add(
-              new BudgetImpact(
-                      str(b.get("category")),
-                      str(b.get("period")),
-                      str(b.get("budget")),
-                      str(b.get("amount")),
-                      str(b.get("available_before")),
-                      str(b.get("available_after")))
-                  .usagePctAfter(pct == null ? null : Double.valueOf(pct.toString())));
-        }
-      }
-    }
-    return new DecisionImpact(budget)
-        .amount(str(m.get("amount")))
-        .economic(str(m.get("economic")))
-        .operational(str(m.get("operational")))
-        .riskIfRejected(str(m.get("risk_if_rejected")))
-        .riskLevel(str(m.get("risk_level")));
-  }
-
-  private static String str(Object o) {
-    return o == null ? null : o.toString();
+    return items.stream()
+        .map(
+            m ->
+                new ImpactItem()
+                    .label(String.valueOf(m.get("label")))
+                    .value(String.valueOf(m.get("value")))
+                    .unit(String.valueOf(m.get("unit")))
+                    .effect(String.valueOf(m.get("effect")))
+                    .note(m.get("note") == null ? null : m.get("note").toString()))
+        .toList();
   }
 
   private static List<AiDecisionRef> dedupe(List<AiDecisionRef> refs) {
@@ -404,7 +524,8 @@ class AiController implements AiApi {
         .minAmount(Money.format(p.getMinAmount()))
         .maxAmount(Money.format(p.getMaxAmount()))
         .approverRole(p.getApproverRole())
-        .conditions(p.getConditions() == null ? Map.of() : p.getConditions());
+        .conditions(p.getConditions() == null ? Map.of() : p.getConditions())
+        .requiresHuman(PolicyEngine.requiresHuman(p.getActionType()));
   }
 
   private com.xperp.shared.contract.model.AiSettings toModel(AiSettings s) {

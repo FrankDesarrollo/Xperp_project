@@ -11,10 +11,10 @@ test('el tablero muestra lo que recomienda la IA y lleva a Inventario con el por
 	page
 }) => {
 	await login(page);
-	await expect(page.getByRole('heading', { name: 'Qué recomienda la IA hoy' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Recomendaciones de hoy' })).toBeVisible();
 	await expect(page.getByText('Trasladar 72 und desde CAL-01')).toBeVisible();
 
-	await page.getByRole('link', { name: 'Ver las 3 recomendaciones' }).click();
+	await page.getByRole('link', { name: 'Ver 3', exact: true }).click();
 	await expect(page).toHaveURL(/\/inventario\?tab=recomendaciones$/);
 	await expect(page.getByText(/Granos del Valle S\.A\.S\. tiene el mejor puntaje/)).toBeVisible();
 	await expect(page.getByText('No reponer: sobran 165 und')).toBeVisible();

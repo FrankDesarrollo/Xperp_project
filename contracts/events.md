@@ -25,7 +25,7 @@ Se publican con `ApplicationEventPublisher` y se consumen con `@ApplicationModul
 | `CarrierUpdateReceived` | partners | logistics | `trackingNumber`, `status`, `occurredAt` |
 | `ShipmentStatusChanged` | logistics | (disponible; el estado del pedido se actualiza por servicio) | `shipmentId`, `salesOrderId`, `trackingNumber`, `status` |
 | `AiDecisionRecorded` | ai | notifications | `decisionId`, `decisionType`, `actionType`, `title`, `policyResult`, `status`, `notifyUsers`, `summary` |
-| `ApprovalRequested` | ai | notifications | `approvalId`, `decisionId`, `requestedRole`, `title`, `amount` |
+| `ApprovalRequested` | ai | notifications (no avisa las guías una por una: van en lote) | `approvalId`, `decisionId`, `decisionType`, `requestedRole`, `title`, `amount` |
 | `ApprovalResolved` | ai | (disponible) | `approvalId`, `decisionId`, `status`, `title`, `decidedBy` |
 | `AlertRaised` | ai | notifications | `alertId`, `type`, `severity`, `message` |
 | `SimulationDayStarted` / `SimulationDayEnded` | simulation | (disponible; ver ADR 0003) | `day`, `dayNumber` |

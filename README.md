@@ -1,6 +1,6 @@
 # Xperp
 
-Xperp (Expert ERP) es un ERP en el que la IA toma decisiones operativas, las ejecuta y les hace seguimiento. El caso de uso es una distribuidora de productos de consumo masivo, Distribuidora La Ceiba S.A.S., que trabaja con datos demo.
+Xperp (Expert ERP) es un ERP en el que la IA analiza la operación, el inventario y las finanzas, prepara las decisiones y les hace seguimiento. Lo que mueve dinero lo aprueba una persona: la IA recomienda, explica por qué y muestra el impacto ([ADR 0004](docs/decisions/0004-ia-recomienda-persona-aprueba.md)). El caso de uso es una distribuidora de productos de consumo masivo, Distribuidora La Ceiba S.A.S., que trabaja con datos demo.
 
 - **Contexto completo del proyecto:** [`AGENTS.md`](AGENTS.md). Es la fuente de verdad para el equipo y para cualquier agente de IA.
 - **Historial de cambios importantes:** [`CHANGELOG.md`](CHANGELOG.md).
@@ -45,10 +45,11 @@ Si otro PostgreSQL ya ocupa el puerto 5432 (por ejemplo, uno de WSL), pon `POSTG
 
 1. Entra como `admin@laceiba.demo` y abre **Simulación**.
 2. Pulsa **Iniciar**. Con 20 s por día, el mes simulado dura unos 10 minutos. Con el reloj en pausa, **Avanzar horas** salta días completos.
-3. La IA reabastece, asigna tareas, despacha y responde a rechazos, retrasos y anomalías. Cada decisión queda en **IA → Decisiones**.
-4. Las OC de $ 5.000.000 o más, los traslados y los ajustes de inventario esperan aprobación en **IA → Aprobaciones**, con `compras@` o `gerencia@`. Si nadie las aprueba, vencen a las 24 horas simuladas.
+3. La IA prepara el reabastecimiento, asigna tareas de bodega, propone guías y responde a rechazos, retrasos y anomalías. Cada decisión queda en **IA → Decisiones** con su impacto y con lo que la activó (evento, condición, pedido o revisión programada).
+4. Lo que mueve dinero o activos lo aprueba una persona en **IA → Aprobaciones**: las OC y reasignaciones, `compras@`; las guías, los traslados, los ajustes y los planes de presupuesto, `gerencia@`. Se pueden aprobar en lote. Si nadie las aprueba, vencen a las 24 horas simuladas.
+5. **Finanzas** muestra ventas, margen, fletes, cuentas por pagar, capital en inventario y el presupuesto proyectado al cierre, con el último análisis de la IA y el botón **Analizar ahora**.
 
-Para dejar la simulación corriendo sola, levanta el backend con `SIM_AUTO_APPROVE=true`, que activa un aprobador virtual. El guion minuto a minuto está en [`docs/demo-script.md`](docs/demo-script.md).
+Para dejar la simulación corriendo sin público, levanta el backend con `SIM_AUTO_APPROVE=true`: un aprobador simulado hace de persona y aprueba lo pendiente después de una hora simulada. El guion minuto a minuto está en [`docs/demo-script.md`](docs/demo-script.md).
 
 Con `LLM_PROVIDER=mock` (el valor por defecto) la demo funciona completa sin claves. Para usar un LLM real, define `LLM_PROVIDER` (`anthropic`, `openai` u `ollama`), `LLM_MODEL` y `LLM_API_KEY`.
 

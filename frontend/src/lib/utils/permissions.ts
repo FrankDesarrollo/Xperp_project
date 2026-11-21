@@ -8,6 +8,7 @@ export const SECTION_ROLES = {
 	inventario: ['admin', 'manager', 'purchasing', 'warehouse', 'viewer'],
 	ventas: ['admin', 'manager', 'viewer'],
 	compras: ['admin', 'manager', 'purchasing'],
+	finanzas: ['admin', 'manager', 'purchasing', 'viewer'],
 	bodega: ['admin', 'manager', 'warehouse'],
 	despachos: ['admin', 'manager', 'warehouse'],
 	'ia/decisiones': ['admin', 'manager', 'purchasing', 'warehouse', 'viewer'],

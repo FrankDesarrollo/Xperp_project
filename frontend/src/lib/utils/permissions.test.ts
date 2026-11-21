@@ -26,6 +26,13 @@ describe('canAccess', () => {
 		expect(canAccess('admin', 'ia/politicas')).toBe(true);
 	});
 
+	it('Finanzas la ven gerencia, compras y el analista, no la bodega', () => {
+		expect(canAccess('manager', 'finanzas')).toBe(true);
+		expect(canAccess('purchasing', 'finanzas')).toBe(true);
+		expect(canAccess('viewer', 'finanzas')).toBe(true);
+		expect(canAccess('warehouse', 'finanzas')).toBe(false);
+	});
+
 	it('sin rol no se entra a ninguna sección', () => {
 		expect(canAccess(undefined, 'tablero')).toBe(false);
 	});

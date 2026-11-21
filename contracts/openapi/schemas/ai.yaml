@@ -13,9 +13,31 @@ DecisionReference:
     label:
       type: string
 
+ImpactItem:
+  type: object
+  description: >-
+    Una cifra del impacto económico u operativo de una propuesta, para que quien aprueba vea qué
+    gasta, qué protege y qué arriesga. Las que dicen «estimado» salen del pronóstico de demanda.
+  required: [label, value, unit, effect]
+  properties:
+    label:
+      type: string
+      description: "Qué mide, en español: «Compromete», «Ventas en riesgo si no se aprueba»..."
+    value:
+      type: string
+      description: Número como string decimal
+    unit:
+      type: string
+      description: "cop, pct, days, units"
+    effect:
+      type: string
+      description: "cost (gasto o sobrecosto), benefit (margen, ahorro o venta protegida), risk (lo que se pierde si no se actúa), info"
+    note:
+      type: [string, "null"]
+
 AiDecision:
   type: object
-  required: [id, decision_type, trigger_event, input_snapshot, alternatives, proposed_action, reasoning, confidence, policy_result, status, llm_used, sim_time, created_at, reversible, references]
+  required: [id, decision_type, trigger_event, trigger_kind, input_snapshot, alternatives, proposed_action, reasoning, confidence, impact, policy_result, status, llm_used, sim_time, created_at, reversible, references]
   properties:
     id:
       type: integer
@@ -29,6 +51,12 @@ AiDecision:
       type: [string, "null"]
     trigger_event:
       type: string
+    trigger_kind:
+      type: string
+      description: >-
+        Qué activó el análisis: event (algo pasó: un pedido, un webhook, un conteo), condition (se
+        cruzó un umbral: stock bajo el de seguridad, presupuesto proyectado), request (lo pidió una
+        persona) o schedule (revisión programada: ciclo diario, cierre del día, revisión semanal)
     trigger_ref:
       type: [string, "null"]
     input_snapshot:
@@ -47,11 +75,13 @@ AiDecision:
     confidence:
       type: number
       format: double
+    impact:
+      type: array
+      items:
+        $ref: "#/ImpactItem"
     amount:
       type: [string, "null"]
       description: Monto de la acción, si aplica (string decimal)
-    impact:
-      $ref: "#/DecisionImpact"
     policy_result:
       type: string
       description: "executed, pending_approval, suggested, blocked"
@@ -102,56 +132,6 @@ AiDecision:
       type: array
       items:
         $ref: "#/DecisionReference"
-
-DecisionImpact:
-  type: object
-  description: >-
-    Impacto económico y operativo de la recomendación (ADR 0004). Lo ve quien aprueba: qué cuesta,
-    qué cambia en la operación y qué pasa si la rechaza.
-  required: [budget]
-  properties:
-    amount:
-      type: [string, "null"]
-      description: Monto que compromete (positivo) o libera (negativo), string decimal
-    economic:
-      type: [string, "null"]
-      description: Efecto económico en una frase, con los números
-    operational:
-      type: [string, "null"]
-      description: Efecto operativo en una frase (cobertura, quiebres, pedidos)
-    risk_if_rejected:
-      type: [string, "null"]
-      description: Qué pasa si nadie la aprueba
-    risk_level:
-      type: [string, "null"]
-      description: "low, medium, high"
-    budget:
-      type: array
-      items:
-        $ref: "#/BudgetImpact"
-
-BudgetImpact:
-  type: object
-  required: [category, period, budget, amount, available_before, available_after]
-  properties:
-    category:
-      type: string
-    period:
-      type: string
-      description: YYYY-MM
-    budget:
-      type: string
-      description: Presupuesto del mes (string decimal)
-    amount:
-      type: string
-      description: Lo que esta acción suma a la categoría (string decimal)
-    available_before:
-      type: string
-    available_after:
-      type: string
-    usage_pct_after:
-      type: [number, "null"]
-      format: double
 
 AiDecisionPage:
   type: object
@@ -219,6 +199,48 @@ ApprovalPage:
     size:
       type: integer
 
+ApprovalBatchRequest:
+  type: object
+  required: [ids]
+  properties:
+    ids:
+      type: array
+      minItems: 1
+      maxItems: 200
+      items:
+        type: integer
+        format: int64
+    comment:
+      type: [string, "null"]
+      maxLength: 500
+
+ApprovalBatchFailure:
+  type: object
+  required: [id, message]
+  properties:
+    id:
+      type: integer
+      format: int64
+    message:
+      type: string
+
+ApprovalBatchResult:
+  type: object
+  required: [approved, failed, approved_amount]
+  properties:
+    approved:
+      type: array
+      items:
+        type: integer
+        format: int64
+    failed:
+      type: array
+      items:
+        $ref: "#/ApprovalBatchFailure"
+    approved_amount:
+      type: string
+      description: Suma de los montos aprobados (string decimal)
+
 ApprovalDecisionRequest:
   type: object
   properties:
@@ -254,6 +276,11 @@ AutonomyPolicy:
       additionalProperties: true
     is_enabled:
       type: boolean
+    requires_human:
+      type: boolean
+      description: >-
+        Solo lectura. La acción mueve o compromete dinero o activos: siempre la aprueba una persona y
+        el nivel no puede pasar de 1 (ADR 0004).
 
 ScoringWeights:
   type: object
@@ -420,3 +447,148 @@ StockRecommendation:
     reason:
       type: string
       description: Por qué, con los datos que vio la IA
+
+TriggerCounts:
+  type: object
+  required: [event, condition, request, schedule]
+  properties:
+    event:
+      type: integer
+    condition:
+      type: integer
+    request:
+      type: integer
+    schedule:
+      type: integer
+
+AiUsageDay:
+  type: object
+  required: [date, decisions, llm_calls, tokens]
+  properties:
+    date:
+      type: string
+      format: date
+    decisions:
+      type: integer
+    llm_calls:
+      type: integer
+    tokens:
+      type: integer
+
+AiUsage:
+  type: object
+  description: >-
+    Cuándo y cuánto se usó la IA en el periodo. Las reglas resuelven casi todo; el LLM solo entra en
+    empates, excepciones, anomalías, resúmenes y preguntas. Muestra que la IA no es un gasto
+    permanente.
+  required: [from, to, decisions_total, by_trigger, decided_by_rules, decided_with_llm, llm_calls, llm_limit_per_day, tokens_in, tokens_out, assistant_questions, autonomous_financial_actions, by_day]
+  properties:
+    from:
+      type: string
+      format: date
+    to:
+      type: string
+      format: date
+    decisions_total:
+      type: integer
+    by_trigger:
+      $ref: "#/TriggerCounts"
+    decided_by_rules:
+      type: integer
+    decided_with_llm:
+      type: integer
+    llm_calls:
+      type: integer
+      description: Llamadas al LLM, incluidas las del asistente
+    llm_limit_per_day:
+      type: integer
+    tokens_in:
+      type: integer
+    tokens_out:
+      type: integer
+    estimated_cost_usd:
+      type: [string, "null"]
+      description: Costo estimado con el precio por millón de tokens configurado; null si no hay precio
+    assistant_questions:
+      type: integer
+    autonomous_financial_actions:
+      type: integer
+      description: >-
+        Acciones financieras que se ejecutaron sin aprobación de una persona. Tiene que ser 0; si
+        no lo es, la regla de aprobación se rompió.
+    by_day:
+      type: array
+      items:
+        $ref: "#/AiUsageDay"
+
+FinancialFinding:
+  type: object
+  required: [code, severity, title, detail, recommendation]
+  properties:
+    code:
+      type: string
+      description: "budget_overrun_projected, budget_near_limit, payables_overdue, payables_due_soon, excess_inventory, freight_high, lost_sales_high, margin_low"
+    severity:
+      type: string
+      description: "high, medium, low"
+    title:
+      type: string
+    detail:
+      type: string
+      description: Los números que lo explican
+    recommendation:
+      type: string
+      description: Qué se recomienda hacer. La IA no lo ejecuta; lo decide una persona.
+    impact:
+      type: [string, "null"]
+      description: Monto en juego (string decimal), si aplica
+    link:
+      type: [string, "null"]
+      description: Pantalla donde se actúa (/compras, /inventario...)
+
+FinancialReview:
+  type: object
+  required: [id, sim_time, trigger_event, trigger_kind, period_from, period_to, summary, findings, llm_used]
+  properties:
+    id:
+      type: integer
+      format: int64
+      description: Decisión de la bitácora que guarda la revisión
+    sim_time:
+      type: string
+      format: date-time
+    trigger_event:
+      type: string
+    trigger_kind:
+      type: string
+      description: "condition, request o schedule"
+    period_from:
+      type: string
+      format: date
+    period_to:
+      type: string
+      format: date
+    summary:
+      type: string
+    findings:
+      type: array
+      items:
+        $ref: "#/FinancialFinding"
+    llm_used:
+      type: boolean
+
+FinancialReviewPage:
+  type: object
+  required: [items, total, page, size]
+  properties:
+    items:
+      type: array
+      items:
+        $ref: "#/FinancialReview"
+    total:
+      type: integer
+      format: int64
+    page:
+      type: integer
+    size:
+      type: integer

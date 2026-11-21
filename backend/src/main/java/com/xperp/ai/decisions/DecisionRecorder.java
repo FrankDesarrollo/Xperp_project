@@ -51,9 +51,8 @@ public class DecisionRecorder {
       ActionProposal p,
       PolicyEngine.PolicyDecision policy,
       String status,
-      Map<String, Object> impact) {
+      List<Map<String, Object>> impact) {
     AiDecision d = new AiDecision();
-    d.setImpact(impact == null ? new LinkedHashMap<>() : new LinkedHashMap<>(impact));
     d.setDecisionType(p.decisionType());
     d.setActionType(p.actionType());
     d.setTitle(truncate(p.title(), 200));
@@ -70,6 +69,8 @@ public class DecisionRecorder {
         BigDecimal.valueOf(Math.max(0, Math.min(1, p.confidence())))
             .setScale(3, java.math.RoundingMode.HALF_UP));
     d.setAmount(p.amount());
+    d.setImpact(impact == null ? new ArrayList<>() : new ArrayList<>(impact));
+    d.setApprovedInDecisionId(policy.approvedIn());
     d.setPolicyResult(policy.result());
     d.setPolicyReason(truncate(policy.reason(), 300));
     d.setAutonomyLevel(policy.level());

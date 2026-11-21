@@ -7,7 +7,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Políticas de autonomía por defecto (AGENTS.md, secciones 8.4, 9.1 y 9.2). Se editan después desde
- * IA → Políticas.
+ * IA → Políticas. Lo que mueve dinero o activos siempre lo aprueba una persona; el nivel de esas
+ * acciones no puede pasar de 1 ({@link PolicyEngine#HUMAN_APPROVAL_ACTIONS}, ADR 0004).
  */
 @Component
 public class PolicyDefaults {
@@ -21,7 +22,6 @@ public class PolicyDefaults {
   @Transactional
   public void create() {
     policies.deleteAll();
-    // ADR 0004: toda acción con impacto financiero o sobre el inventario la aprueba una persona.
     add(
         "create_purchase_order",
         "OC de menos de $ 5.000.000: aprueba Compras",
@@ -56,11 +56,11 @@ public class PolicyDefaults {
         Map.of("overcost_pct_lte", 10));
     add(
         "reassign_purchase_order",
-        "Reasignación con sobrecosto > 10 %: aprueba Gerencia",
+        "Reasignación con sobrecosto > 10 %: aprueba Compras",
         1,
         null,
         null,
-        "manager",
+        "purchasing",
         Map.of("overcost_pct_gt", 10));
     add(
         "cancel_purchase_order",
@@ -89,11 +89,11 @@ public class PolicyDefaults {
         Map.of());
     add(
         "create_shipment",
-        "Guía con la transportadora elegida: se ejecuta y se notifica",
-        2,
+        "Guía con la transportadora elegida (flete): aprueba Gerencia",
+        1,
         null,
         null,
-        null,
+        "manager",
         Map.of());
     add(
         "hold_sales_order",
@@ -145,6 +145,14 @@ public class PolicyDefaults {
         null,
         Map.of());
     add("send_daily_summary", "Resumen diario a gerencia y compras", 3, null, null, null, Map.of());
+    add(
+        "send_financial_review",
+        "Revisión financiera a gerencia y compras: solo informa",
+        3,
+        null,
+        null,
+        null,
+        Map.of());
   }
 
   private void add(

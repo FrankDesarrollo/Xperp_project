@@ -101,6 +101,8 @@ xperp:
     llm-model: ${LLM_MODEL:}
     max-llm-calls-per-sim-day: ${LLM_MAX_CALLS_PER_SIM_DAY:30}
     shadow-mode: ${AI_SHADOW_MODE:false}
+    llm-price-input-per-mtok-usd: ${LLM_PRICE_INPUT_PER_MTOK_USD:}
+    llm-price-output-per-mtok-usd: ${LLM_PRICE_OUTPUT_PER_MTOK_USD:}
   simulation:
     start-date: ${SIM_START_DATE:2026-11-01}
     seconds-per-day: ${SIM_SECONDS_PER_DAY:20}

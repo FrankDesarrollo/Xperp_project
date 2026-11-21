@@ -82,6 +82,23 @@ export function formatNumber(value: number | null | undefined, decimals = 0): st
 	}).format(value);
 }
 
+/** Una cifra de impacto según su unidad: cop, pct, days o units (ADR 0004). */
+export function formatImpact(value: string, unit: string): string {
+	const n = Number(value);
+	switch (unit) {
+		case 'cop':
+			return formatCop(value);
+		case 'pct':
+			return formatPct(n);
+		case 'days':
+			return `${formatNumber(n, 1)} ${n === 1 ? 'día' : 'días'}`;
+		case 'units':
+			return `${formatNumber(n)} und`;
+		default:
+			return value;
+	}
+}
+
 /** Porcentaje: 0,9842 → «98,4 %» si `ratio`; 76,28 → «76,3 %» si no. */
 export function formatPct(value: number | null | undefined, ratio = false, decimals = 1): string {
 	if (value === null || value === undefined || !Number.isFinite(value)) return '—';

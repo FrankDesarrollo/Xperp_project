@@ -35,6 +35,11 @@ public interface AiDecisionRepository extends JpaRepository<AiDecision, Long> {
 
   boolean existsByTriggerRefAndStatusIn(String triggerRef, Collection<String> statuses);
 
+  boolean existsByDecisionTypeAndTriggerRefAndStatusIn(
+      String decisionType, String triggerRef, Collection<String> statuses);
+
+  List<AiDecision> findByActionTypeAndStatus(String actionType, String status);
+
   boolean existsByDecisionTypeAndTriggerRefAndSimTimeAfter(
       String decisionType, String triggerRef, Instant after);
 

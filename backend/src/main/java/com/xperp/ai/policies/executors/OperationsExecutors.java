@@ -376,4 +376,19 @@ class OperationsExecutors {
       }
     };
   }
+
+  @Bean
+  ActionExecutor sendFinancialReviewExecutor() {
+    return new ActionExecutor() {
+      @Override
+      public String actionType() {
+        return "send_financial_review";
+      }
+
+      @Override
+      public Result execute(long decisionId, Map<String, Object> payload) {
+        return Result.of("Revisión financiera enviada a gerencia y compras");
+      }
+    };
+  }
 }

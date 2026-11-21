@@ -83,6 +83,7 @@ export const DECISION_TYPE: Record<string, string> = {
 	budget_prioritization: 'Priorización por presupuesto',
 	reorder_params_update: 'Parámetros de reorden',
 	daily_summary: 'Resumen diario',
+	financial_review: 'Revisión financiera',
 	assistant_answer: 'Asistente'
 };
 
@@ -114,7 +115,8 @@ export const ACTION_TYPE: Record<string, string> = {
 	adjust_inventory: 'Ajustar inventario',
 	apply_budget_plan: 'Plan de presupuesto',
 	update_reorder_params: 'Actualizar parámetros',
-	send_daily_summary: 'Enviar resumen'
+	send_daily_summary: 'Enviar resumen',
+	send_financial_review: 'Enviar revisión financiera'
 };
 
 export const LEVEL_LABEL: Record<number, string> = {
@@ -151,6 +153,38 @@ export const RECOMMENDATION_KIND: Record<string, { label: string; tone: Tone }> 
 	pending_approval: { label: 'Por aprobar', tone: 'warning' },
 	excess: { label: 'Exceso', tone: 'neutral' }
 };
+
+/** Qué activó cada análisis: la IA no corre todo el tiempo (ADR 0004). */
+export const TRIGGER_KIND: Record<string, { label: string; tone: Tone }> = {
+	event: { label: 'Por evento', tone: 'neutral' },
+	condition: { label: 'Por condición', tone: 'warning' },
+	request: { label: 'A pedido', tone: 'info' },
+	schedule: { label: 'Programada', tone: 'neutral' }
+};
+
+/** Cómo se lee cada cifra del impacto de una propuesta. */
+export const IMPACT_EFFECT: Record<string, { label: string; tone: Tone }> = {
+	cost: { label: 'Gasto', tone: 'warning' },
+	benefit: { label: 'Beneficio', tone: 'success' },
+	risk: { label: 'Riesgo', tone: 'danger' },
+	info: { label: 'Dato', tone: 'neutral' }
+};
+
+export const FINDING_SEVERITY: Record<string, { label: string; tone: Tone }> = {
+	high: { label: 'Grave', tone: 'danger' },
+	medium: { label: 'Atención', tone: 'warning' },
+	low: { label: 'Para saber', tone: 'info' }
+};
+
+/** Tipos de decisión que llegan a la bandeja de aprobaciones, para filtrarla. */
+export const APPROVAL_TYPES: { id: string; label: string }[] = [
+	{ id: 'replenishment', label: 'Órdenes de compra' },
+	{ id: 'carrier_selection', label: 'Guías de despacho' },
+	{ id: 'po_exception', label: 'Excepciones de OC' },
+	{ id: 'stock_transfer', label: 'Traslados' },
+	{ id: 'inventory_discrepancy', label: 'Ajustes de inventario' },
+	{ id: 'budget_prioritization', label: 'Planes de presupuesto' }
+];
 
 export const RECOMMENDATION_PRIORITY: Record<string, { label: string; tone: Tone }> = {
 	high: { label: 'Urgente', tone: 'danger' },

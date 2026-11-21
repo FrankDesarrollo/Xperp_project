@@ -6,14 +6,21 @@
 	import StatusBadge from './StatusBadge.svelte';
 	import FactsList from './FactsList.svelte';
 	import DataTable from './DataTable.svelte';
+	import ImpactList from './ImpactList.svelte';
 	import type { AiDecision } from '$lib/api/types';
 	import { formatCop, formatDateTime, formatPct } from '$lib/utils/format';
-	import { ACTION_TYPE, DECISION_STATUS, DECISION_TYPE, LEVEL_LABEL } from '$lib/utils/labels';
+	import {
+		ACTION_TYPE,
+		DECISION_STATUS,
+		DECISION_TYPE,
+		LEVEL_LABEL,
+		TRIGGER_KIND
+	} from '$lib/utils/labels';
 
 	/**
 	 * Tarjeta única de una decisión de la IA, igual en todas las pantallas (AGENTS.md, 11.2).
 	 * En modo compacto muestra el resumen; en modo completo, los datos de entrada, las alternativas
-	 * y la acción propuesta.
+	 * y la acción propuesta. El impacto (qué gasta, protege y arriesga) va antes del razonamiento.
 	 */
 	interface Props {
 		decision: AiDecision;
@@ -53,6 +60,7 @@
 		<div class="tags">
 			<Badge tone="ai"><Bot size={12} />{DECISION_TYPE[d.decision_type] ?? d.decision_type}</Badge>
 			<StatusBadge map={DECISION_STATUS} value={d.status} />
+			<StatusBadge map={TRIGGER_KIND} value={d.trigger_kind} />
 			{#if d.llm_used}
 				<Badge tone="ai"><Sparkles size={12} />LLM {d.llm_model ?? ''}</Badge>
 			{/if}
@@ -67,6 +75,8 @@
 	{:else}
 		<h3 class="title">{d.title ?? ACTION_TYPE[d.action_type ?? ''] ?? 'Decisión'}</h3>
 	{/if}
+
+	<ImpactList items={d.impact} max={compact ? 4 : undefined} />
 
 	<p class="reasoning">{d.reasoning}</p>
 

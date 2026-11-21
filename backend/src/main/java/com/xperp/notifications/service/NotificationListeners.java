@@ -63,9 +63,11 @@ class NotificationListeners {
   @ApplicationModuleListener
   void on(AiDecisionRecorded e) {
     String link = "/ia/decisiones?id=" + e.decisionId();
-    if ("daily_summary".equals(e.decisionType())) {
-      notifications.notifyRole("manager", "daily_summary", e.title(), e.summary(), link, false);
-      notifications.notifyRole("purchasing", "daily_summary", e.title(), e.summary(), link, false);
+    if ("daily_summary".equals(e.decisionType()) || "financial_review".equals(e.decisionType())) {
+      String type = e.decisionType();
+      String target = "financial_review".equals(type) ? "/finanzas" : link;
+      notifications.notifyRole("manager", type, e.title(), e.summary(), target, false);
+      notifications.notifyRole("purchasing", type, e.title(), e.summary(), target, false);
       return;
     }
     if ("failed".equals(e.status()) && !QUIET.contains(e.decisionType())) {
@@ -83,6 +85,10 @@ class NotificationListeners {
 
   @ApplicationModuleListener
   void on(ApprovalRequested e) {
+    if ("carrier_selection".equals(e.decisionType())) {
+      // Unas 130 guías por día: se aprueban en lote desde la bandeja, sin un aviso por cada una.
+      return;
+    }
     String amount = e.amount() == null ? "" : " por " + Money.display(e.amount());
     notifications.notifyRole(
         e.requestedRole(),

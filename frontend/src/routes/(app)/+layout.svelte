@@ -9,6 +9,7 @@
 		Boxes,
 		ClipboardCheck,
 		Gauge,
+		Landmark,
 		LogOut,
 		MessageSquare,
 		Moon,
@@ -53,6 +54,7 @@
 				{ href: '/inventario', label: 'Inventario', section: 'inventario', icon: Boxes },
 				{ href: '/ventas', label: 'Ventas', section: 'ventas', icon: Receipt },
 				{ href: '/compras', label: 'Compras', section: 'compras', icon: ShoppingCart },
+				{ href: '/finanzas', label: 'Finanzas', section: 'finanzas', icon: Landmark },
 				{ href: '/bodega', label: 'Bodega', section: 'bodega', icon: Warehouse },
 				{ href: '/despachos', label: 'Despachos', section: 'despachos', icon: Truck }
 			]

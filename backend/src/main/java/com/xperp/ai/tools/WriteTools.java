@@ -2,7 +2,6 @@ package com.xperp.ai.tools;
 
 import com.xperp.ai.policies.ActionGateway;
 import com.xperp.ai.policies.ActionProposal;
-import com.xperp.ai.policies.Impact;
 import com.xperp.catalog.api.CatalogService;
 import com.xperp.catalog.api.ProductDto;
 import com.xperp.inventory.api.InventoryService;
@@ -42,8 +41,7 @@ public class WriteTools {
       ActionProposal.LlmTrace llm,
       Map<String, Object> attributes,
       BigDecimal amount,
-      List<ActionProposal.Ref> refs,
-      Impact impact) {}
+      List<ActionProposal.Ref> refs) {}
 
   private static final ThreadLocal<Context> CONTEXT = new ThreadLocal<>();
 
@@ -207,8 +205,7 @@ public class WriteTools {
           .alternatives(ctx.alternatives())
           .confidence(ctx.confidence())
           .llm(ctx.llm())
-          .amount(ctx.amount())
-          .impact(ctx.impact());
+          .amount(ctx.amount());
       ctx.attributes().forEach(b::attribute);
       if (ctx.refs() != null) {
         ctx.refs().forEach(r -> b.ref(r.type(), r.id(), r.label()));

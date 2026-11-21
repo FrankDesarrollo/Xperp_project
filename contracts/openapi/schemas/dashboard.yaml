@@ -118,3 +118,92 @@ Series:
       type: array
       items:
         $ref: ai.yaml#/SeriesPoint
+
+BudgetProjection:
+  type: object
+  required: [category_id, category_code, category_name, amount, committed, spent, used_pct, projected_pct, projected_overrun]
+  properties:
+    category_id:
+      type: integer
+      format: int64
+    category_code:
+      type: string
+    category_name:
+      type: string
+    amount:
+      $ref: common.yaml#/Money
+    committed:
+      $ref: common.yaml#/Money
+    spent:
+      $ref: common.yaml#/Money
+    used_pct:
+      type: number
+      format: double
+      description: (comprometido + gastado) / presupuesto × 100
+    projected_pct:
+      type: number
+      format: double
+      description: Uso proyectado a fin de mes al ritmo de compra de los días transcurridos
+    projected_overrun:
+      $ref: common.yaml#/Money
+
+FinanceOverview:
+  type: object
+  description: >-
+    Cifras financieras del periodo. Las calcula el sistema con consultas, sin IA. Ingresos son las
+    ventas de pedidos válidos; el modelo no tiene caja ni cartera de clientes.
+  required: [from, to, days_elapsed, days_in_period, revenue, cost_of_sales, gross_margin, gross_margin_pct, freight, freight_pct, margin_after_freight, purchases_received, purchases_committed, lost_sales_amount, payables_open, payables_due_7d, payables_overdue, inventory_value, inventory_excess_value, slow_mover_value, budgets]
+  properties:
+    from:
+      type: string
+      format: date
+    to:
+      type: string
+      format: date
+    days_elapsed:
+      type: integer
+    days_in_period:
+      type: integer
+    revenue:
+      $ref: common.yaml#/Money
+    cost_of_sales:
+      $ref: common.yaml#/Money
+    gross_margin:
+      $ref: common.yaml#/Money
+    gross_margin_pct:
+      type: number
+      format: double
+    freight:
+      $ref: common.yaml#/Money
+    freight_pct:
+      type: number
+      format: double
+      description: Fletes / ingresos × 100
+    margin_after_freight:
+      $ref: common.yaml#/Money
+    purchases_received:
+      $ref: common.yaml#/Money
+    purchases_committed:
+      $ref: common.yaml#/Money
+      description: OC enviadas que todavía no llegan
+    lost_sales_amount:
+      $ref: common.yaml#/Money
+    payables_open:
+      $ref: common.yaml#/Money
+    payables_due_7d:
+      $ref: common.yaml#/Money
+    payables_overdue:
+      $ref: common.yaml#/Money
+    inventory_value:
+      $ref: common.yaml#/Money
+      description: Inventario a costo
+    inventory_excess_value:
+      $ref: common.yaml#/Money
+      description: Valor a costo de las unidades por encima del tope de cada existencia
+    slow_mover_value:
+      $ref: common.yaml#/Money
+      description: Valor a costo de las existencias con más de 60 días de cobertura
+    budgets:
+      type: array
+      items:
+        $ref: "#/BudgetProjection"

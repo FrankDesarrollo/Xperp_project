@@ -2,8 +2,10 @@ package com.xperp.dashboard.web;
 
 import com.xperp.dashboard.api.DashboardQueries;
 import com.xperp.shared.contract.api.DashboardApi;
+import com.xperp.shared.contract.model.BudgetProjection;
 import com.xperp.shared.contract.model.CategoryDays;
 import com.xperp.shared.contract.model.DecisionCounts;
+import com.xperp.shared.contract.model.FinanceOverview;
 import com.xperp.shared.contract.model.Kpis;
 import com.xperp.shared.contract.model.Series;
 import com.xperp.shared.contract.model.SeriesPoint;
@@ -15,6 +17,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -73,6 +76,54 @@ class DashboardController implements DashboardApi {
                         new SupplierFulfillment(
                             s.supplierCode(), s.supplierName(), s.orders(), s.onTimeRate()))
                 .toList()));
+  }
+
+  @Override
+  @PreAuthorize("hasAnyRole('admin','manager','purchasing','viewer')")
+  public ResponseEntity<FinanceOverview> getFinanceOverview(LocalDate from, LocalDate to) {
+    LocalDate today = SimTime.today(clock);
+    LocalDate t = to == null ? today : to;
+    LocalDate f = from == null ? t.withDayOfMonth(1) : from;
+    return ResponseEntity.ok(toModel(dashboard.finance(f, t)));
+  }
+
+  static FinanceOverview toModel(DashboardQueries.FinanceSnapshot s) {
+    return new FinanceOverview()
+        .from(s.from())
+        .to(s.to())
+        .daysElapsed(s.daysElapsed())
+        .daysInPeriod(s.daysInPeriod())
+        .revenue(Money.format(s.revenue()))
+        .costOfSales(Money.format(s.costOfSales()))
+        .grossMargin(Money.format(s.grossMargin()))
+        .grossMarginPct(s.grossMarginPct())
+        .freight(Money.format(s.freight()))
+        .freightPct(s.freightPct())
+        .marginAfterFreight(Money.format(s.marginAfterFreight()))
+        .purchasesReceived(Money.format(s.purchasesReceived()))
+        .purchasesCommitted(Money.format(s.purchasesCommitted()))
+        .lostSalesAmount(Money.format(s.lostSalesAmount()))
+        .payablesOpen(Money.format(s.payablesOpen()))
+        .payablesDue7d(Money.format(s.payablesDue7d()))
+        .payablesOverdue(Money.format(s.payablesOverdue()))
+        .inventoryValue(Money.format(s.inventoryValue()))
+        .inventoryExcessValue(Money.format(s.inventoryExcessValue()))
+        .slowMoverValue(Money.format(s.slowMoverValue()))
+        .budgets(
+            s.budgets().stream()
+                .map(
+                    b ->
+                        new BudgetProjection()
+                            .categoryId(b.categoryId())
+                            .categoryCode(b.categoryCode())
+                            .categoryName(b.categoryName())
+                            .amount(Money.format(b.amount()))
+                            .committed(Money.format(b.committed()))
+                            .spent(Money.format(b.spent()))
+                            .usedPct(b.usedPct())
+                            .projectedPct(b.projectedPct())
+                            .projectedOverrun(Money.format(b.projectedOverrun())))
+                .toList());
   }
 
   @Override

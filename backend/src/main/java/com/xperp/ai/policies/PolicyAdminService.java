@@ -45,11 +45,10 @@ public class PolicyAdminService {
       if (c.level() < 0 || c.level() > 3) {
         throw BusinessException.invalid("invalid_level", "El nivel va de 0 a 3");
       }
-      if (c.level() >= 2 && PolicyEngine.APPROVAL_REQUIRED_ACTIONS.contains(p.getActionType())) {
+      if (c.level() >= 2 && PolicyEngine.requiresHuman(p.getActionType())) {
         throw BusinessException.invalid(
             "approval_required",
-            "Esta acción tiene impacto financiero u operativo: la IA solo puede recomendarla (nivel"
-                + " 0) o prepararla para aprobación (nivel 1)");
+            "Esta acción mueve dinero o activos: siempre la aprueba una persona (nivel 0 o 1)");
       }
       if (c.level() == 1 && (c.approverRole() == null || !ROLES.contains(c.approverRole()))) {
         throw BusinessException.invalid(

@@ -4,6 +4,7 @@ import com.xperp.ai.agent.StockAdvisor;
 import com.xperp.ai.decisions.AiDecision;
 import com.xperp.ai.decisions.AiDecisionRepository;
 import com.xperp.ai.forecasting.ForecastService;
+import com.xperp.ai.rules.FinanceRules;
 import com.xperp.catalog.api.CatalogService;
 import com.xperp.catalog.api.CategoryDto;
 import com.xperp.catalog.api.ProductDto;
@@ -328,6 +329,57 @@ public class ReadTools {
               "on_time_rate", q.carrier().onTimeRate()));
     }
     return result;
+  }
+
+  @Tool(
+      name = "get_financial_overview",
+      description =
+          "Finanzas del mes en curso: ventas, margen, fletes, compras, cuentas por pagar,"
+              + " presupuesto proyectado por categoría, capital en inventario y los hallazgos que"
+              + " calculan las reglas, con su recomendación.")
+  public Map<String, Object> getFinancialOverview() {
+    record("get_financial_overview", Map.of());
+    LocalDate today = SimTime.today(clock);
+    DashboardQueries.FinanceSnapshot s = dashboard.finance(today.withDayOfMonth(1), today);
+    Map<String, Object> m = new LinkedHashMap<>();
+    m.put("desde", s.from().toString());
+    m.put("hasta", s.to().toString());
+    m.put("ventas", Money.display(s.revenue()));
+    m.put("margen_bruto", Money.display(s.grossMargin()));
+    m.put("margen_pct", s.grossMarginPct());
+    m.put("fletes", Money.display(s.freight()));
+    m.put("fletes_pct", s.freightPct());
+    m.put("compras_recibidas", Money.display(s.purchasesReceived()));
+    m.put("compras_comprometidas", Money.display(s.purchasesCommitted()));
+    m.put("ventas_perdidas", Money.display(s.lostSalesAmount()));
+    m.put("por_pagar", Money.display(s.payablesOpen()));
+    m.put("por_pagar_7_dias", Money.display(s.payablesDue7d()));
+    m.put("por_pagar_vencido", Money.display(s.payablesOverdue()));
+    m.put("inventario_costo", Money.display(s.inventoryValue()));
+    m.put("inventario_exceso", Money.display(s.inventoryExcessValue()));
+    m.put("inventario_estancado", Money.display(s.slowMoverValue()));
+    m.put(
+        "presupuesto",
+        s.budgets().stream()
+            .map(
+                b ->
+                    Map.<String, Object>of(
+                        "categoria", b.categoryName(),
+                        "uso_pct", b.usedPct(),
+                        "proyectado_pct", b.projectedPct(),
+                        "faltante_proyectado", Money.display(b.projectedOverrun())))
+            .toList());
+    m.put(
+        "hallazgos",
+        FinanceRules.findings(s).stream()
+            .map(
+                f ->
+                    Map.<String, Object>of(
+                        "gravedad", f.severity(),
+                        "hallazgo", f.title(),
+                        "recomendacion", f.recommendation()))
+            .toList());
+    return m;
   }
 
   @Tool(

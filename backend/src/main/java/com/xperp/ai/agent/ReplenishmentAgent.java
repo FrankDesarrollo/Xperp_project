@@ -2,6 +2,7 @@ package com.xperp.ai.agent;
 
 import com.xperp.ai.agent.PurchaseProposals.Plan;
 import com.xperp.ai.agent.PurchaseProposals.PlannedLine;
+import com.xperp.ai.decisions.AiDecision;
 import com.xperp.ai.decisions.AiDecisionRepository;
 import com.xperp.ai.forecasting.ForecastService;
 import com.xperp.ai.policies.ActionGateway;
@@ -19,6 +20,7 @@ import com.xperp.inventory.api.InventoryService;
 import com.xperp.inventory.api.StockKey;
 import com.xperp.purchasing.api.OfferDto;
 import com.xperp.purchasing.api.OpenLine;
+import com.xperp.purchasing.api.PurchaseOrderDto;
 import com.xperp.purchasing.api.PurchasingService;
 import com.xperp.purchasing.api.SupplierDto;
 import com.xperp.shared.time.SimTime;
@@ -116,6 +118,16 @@ class ReplenishmentAgent {
     Set<StockKey> withOpenPo = new HashSet<>();
     for (OpenLine l : purchasing.openLines()) {
       withOpenPo.add(new StockKey(l.productId(), l.warehouseId()));
+    }
+    // Una OC rechazada o retrasada con reasignación por aprobar ya no cuenta como abierta, pero su
+    // reposición está en manos de quien aprueba: no se propone otra compra encima.
+    for (AiDecision d :
+        decisions.findByActionTypeAndStatus("reassign_purchase_order", "pending_approval")) {
+      Object poId = d.getProposedAction().get("purchase_order_id");
+      if (poId != null) {
+        PurchaseOrderDto po = purchasing.order(Long.parseLong(poId.toString()));
+        po.lines().forEach(l -> withOpenPo.add(new StockKey(l.productId(), po.warehouseId())));
+      }
     }
 
     List<PlannedLine> planned = new ArrayList<>();

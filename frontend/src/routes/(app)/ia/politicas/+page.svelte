@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import LoadState from '$lib/components/ui/LoadState.svelte';
 	import { Loader } from '$lib/utils/loader.svelte';
-	import { OctagonX, Eye } from '@lucide/svelte';
+	import { OctagonX, Eye, Lock } from '@lucide/svelte';
 	import { api, unwrap, ApiError } from '$lib/api/client';
 	import type { AiSettings, AutonomyPolicy, Budget } from '$lib/api/types';
 	import { clock } from '$lib/stores/clock.svelte';
@@ -213,6 +213,8 @@
 			<p class="small text-muted">
 				Nivel 0 solo sugiere · nivel 1 prepara y espera aprobación · nivel 2 ejecuta y notifica ·
 				nivel 3 ejecuta sin notificar. Los montos van en COP; el mínimo incluye y el máximo excluye.
+				Lo que mueve dinero o activos (compras, guías, traslados, ajustes, presupuesto) no puede
+				pasar del nivel 1: la IA lo prepara y una persona lo aprueba.
 			</p>
 			<div class="table-wrap">
 				<table class="data">
@@ -226,12 +228,19 @@
 					<tbody>
 						{#each policies as p (p.id)}
 							<tr>
-								<td><strong class="small">{ACTION_TYPE[p.action_type] ?? p.action_type}</strong></td
+								<td
+									><strong class="small">{ACTION_TYPE[p.action_type] ?? p.action_type}</strong>
+									{#if p.requires_human}<span class="lock small"
+											><Lock size={12} aria-hidden="true" />Siempre la aprueba una persona</span
+										>{/if}</td
 								>
 								<td class="small text-muted">{p.description}</td>
 								<td>
 									<select bind:value={p.level} onchange={() => (dirty = true)} aria-label="Nivel">
-										{#each [0, 1, 2, 3] as l (l)}<option value={l}>{LEVEL_LABEL[l]}</option>{/each}
+										{#each [0, 1, 2, 3] as l (l)}<option
+												value={l}
+												disabled={p.requires_human && l >= 2}>{LEVEL_LABEL[l]}</option
+											>{/each}
 									</select>
 								</td>
 								<td
@@ -323,6 +332,13 @@
 
 <style>
 	.grid-2,
+	.lock {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+		color: var(--color-text-muted);
+	}
+
 	.policies {
 		margin-bottom: var(--space-4);
 	}

@@ -1,16 +1,15 @@
 package com.xperp.ai.policies;
 
+import com.xperp.ai.decisions.ApprovalRepository;
+import com.xperp.ai.decisions.ApprovalService;
 import com.xperp.catalog.api.CatalogService;
 import com.xperp.finance.api.BudgetDto;
 import com.xperp.finance.api.FinanceService;
 import com.xperp.shared.persistence.Money;
 import com.xperp.shared.time.SimTime;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -35,30 +34,40 @@ public class PolicyEngine {
       List.of("create_purchase_order", "reassign_purchase_order");
 
   /**
-   * Acciones con impacto financiero o sobre el inventario (ADR 0004): la IA las recomienda y una
-   * persona las aprueba siempre. Ninguna política puede subirlas a nivel 2 o 3. Quedan fuera las
-   * guías de transporte (flete rutinario cotizado) y la retención de pedidos anómalos (es la medida
-   * de protección; una persona la libera o la revierte).
+   * Acciones que mueven o comprometen dinero o activos. La IA las prepara y las explica, pero nunca
+   * las ejecuta sola: siempre las aprueba una persona, sin importar el nivel configurado (ADR
+   * 0004).
    */
-  public static final Set<String> APPROVAL_REQUIRED_ACTIONS =
+  public static final Set<String> HUMAN_APPROVAL_ACTIONS =
       Set.of(
           "create_purchase_order",
           "reassign_purchase_order",
           "cancel_purchase_order",
           "propose_stock_transfer",
           "adjust_inventory",
-          "apply_budget_plan");
+          "apply_budget_plan",
+          "create_shipment");
 
-  /** Quién aprueba una acción protegida cuando la política no lo dice. */
-  static String defaultApprover(String actionType) {
-    return switch (actionType) {
-      case "create_purchase_order", "reassign_purchase_order", "cancel_purchase_order" ->
-          "purchasing";
-      default -> "manager";
-    };
+  /**
+   * Atributo de una propuesta que nace de otra que una persona ya aprobó (las OC de un plan de
+   * presupuesto aprobado). Lleva el id de esa decisión y se verifica contra su aprobación.
+   */
+  public static final String APPROVED_IN_DECISION = "approved_in_decision";
+
+  public static boolean requiresHuman(String actionType) {
+    return HUMAN_APPROVAL_ACTIONS.contains(actionType);
   }
 
-  public record PolicyDecision(String result, Integer level, String approverRole, String reason) {
+  /**
+   * Resultado de la política. {@code approvedIn} es la decisión aprobada por una persona de la que
+   * esta hereda la aprobación, si la hay.
+   */
+  public record PolicyDecision(
+      String result, Integer level, String approverRole, String reason, Long approvedIn) {
+
+    public PolicyDecision(String result, Integer level, String approverRole, String reason) {
+      this(result, level, approverRole, reason, null);
+    }
 
     public boolean notifyUsers() {
       return EXECUTED.equals(result) && level != null && level == 2;
@@ -70,6 +79,7 @@ public class PolicyEngine {
   private final AiUsageService usage;
   private final FinanceService finance;
   private final CatalogService catalog;
+  private final ApprovalRepository approvals;
   private final Clock clock;
 
   PolicyEngine(
@@ -78,12 +88,14 @@ public class PolicyEngine {
       AiUsageService usage,
       FinanceService finance,
       CatalogService catalog,
+      ApprovalRepository approvals,
       Clock clock) {
     this.policies = policies;
     this.settings = settings;
     this.usage = usage;
     this.finance = finance;
     this.catalog = catalog;
+    this.approvals = approvals;
     this.clock = clock;
   }
 
@@ -99,17 +111,16 @@ public class PolicyEngine {
     Optional<AutonomyPolicy> policy = match(p);
     int level = policy.map(AutonomyPolicy::getLevel).orElse(1);
     String role =
-        policy
-            .map(AutonomyPolicy::getApproverRole)
-            .filter(r -> r != null && !r.isBlank())
-            .orElse(defaultApprover(p.actionType()));
+        policy.map(AutonomyPolicy::getApproverRole).filter(r -> !r.isBlank()).orElse("manager");
     String reason =
         policy.map(AutonomyPolicy::getDescription).orElse("Sin política: requiere aprobación");
 
     if (level == 0) {
       return new PolicyDecision(SUGGESTED, 0, null, "Nivel 0: solo sugerencia. " + reason);
     }
-    if (level == 1) {
+    // Una persona ya la aprobó dentro de otra decisión (las OC de un plan de presupuesto aprobado).
+    Optional<Long> upstream = approvedUpstream(p, role);
+    if (level == 1 && upstream.isEmpty()) {
       return new PolicyDecision(PENDING_APPROVAL, 1, role, reason);
     }
     if (p.forcedApproval() != null) {
@@ -132,52 +143,39 @@ public class PolicyEngine {
                 .formatted(Money.display(s.dailySpendCap()), Money.display(spent)));
       }
     }
-    if (APPROVAL_REQUIRED_ACTIONS.contains(p.actionType())) {
+    if (upstream.isPresent()) {
+      return new PolicyDecision(
+          EXECUTED,
+          level,
+          null,
+          "Aprobada por una persona en la decisión #%d. %s".formatted(upstream.get(), reason),
+          upstream.get());
+    }
+    if (requiresHuman(p.actionType())) {
       return new PolicyDecision(
           PENDING_APPROVAL,
           1,
           role,
-          "Impacto financiero u operativo: la IA recomienda y una persona aprueba. " + reason);
+          "Mueve dinero o activos: la aprueba una persona antes de ejecutarse. " + reason);
     }
     return new PolicyDecision(EXECUTED, level, null, reason);
   }
 
   /**
-   * Efecto de la propuesta en el presupuesto de cada categoría: disponible antes y después, y el
-   * uso resultante. Lista vacía si la acción no gasta.
+   * La decisión de origen, si la propuesta dice venir de una, esa decisión está aprobada y quien la
+   * aprobó podía decidir también el rol que pide esta.
    */
-  public List<Map<String, Object>> budgetImpact(ActionProposal p) {
-    Object raw = p.attributes().get("amounts_by_category");
-    if (!(raw instanceof Map<?, ?> byCategory)) {
-      return List.of();
+  private Optional<Long> approvedUpstream(ActionProposal p, String role) {
+    Object raw = p.attributes().get(APPROVED_IN_DECISION);
+    if (raw == null) {
+      return Optional.empty();
     }
-    String period = SimTime.period(clock.instant());
-    List<Map<String, Object>> lines = new ArrayList<>();
-    for (Map.Entry<?, ?> e : byCategory.entrySet()) {
-      long categoryId = Long.parseLong(e.getKey().toString());
-      BigDecimal amount = new BigDecimal(e.getValue().toString());
-      BudgetDto budget = finance.budget(categoryId, period);
-      BigDecimal usedAfter = budget.used().add(amount);
-      Map<String, Object> m = new LinkedHashMap<>();
-      m.put("category", catalog.category(categoryId).name());
-      m.put("period", period);
-      m.put("budget", Money.format(budget.amount()));
-      m.put("amount", Money.format(amount));
-      m.put("available_before", Money.format(budget.available()));
-      m.put("available_after", Money.format(budget.amount().subtract(usedAfter)));
-      m.put("usage_pct_after", usagePct(usedAfter, budget.amount()));
-      lines.add(m);
-    }
-    return lines;
-  }
-
-  static Double usagePct(BigDecimal used, BigDecimal total) {
-    if (total == null || total.signum() == 0) {
-      return null;
-    }
-    return used.multiply(BigDecimal.valueOf(100))
-        .divide(total, 1, RoundingMode.HALF_UP)
-        .doubleValue();
+    long parentId = Long.parseLong(raw.toString());
+    return approvals
+        .findByAiDecisionId(parentId)
+        .filter(a -> "approved".equals(a.getStatus()))
+        .filter(a -> ApprovalService.roleCanDecide(a.getRequestedRole(), role))
+        .map(a -> parentId);
   }
 
   /** La política más específica que cumple tipo de acción, rango de monto y condiciones. */

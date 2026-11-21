@@ -1,5 +1,7 @@
 # Cambios de Frank
 
+> **Actualización del 2026-11-21:** este documento describe la versión de Frank. Al integrarla con la de Erick cambiaron dos cosas: las guías de despacho también esperan aprobación (de Gerencia, en lote), y el impacto es una lista de cifras (`ImpactItem`, calculada por `ImpactAssessor`) en vez del `Impact` por agente y los esquemas `DecisionImpact` y `BudgetImpact`. De los pendientes de la sección 5 ya están hechos el impacto en `DecisionCard` y `ApprovalCard`, los textos de IA → Políticas y la segunda fase (Finanzas y el panel de uso de la IA). El detalle está en el [ADR 0004](decisions/0004-ia-recomienda-persona-aprueba.md), en la sección «Integración de las dos versiones».
+
 Erick: aquí está todo lo que cambié, por qué y cómo funciona. Hay dos bloques:
 
 1. **Backend: "la IA recomienda y una persona aprueba"** ([ADR 0004](decisions/0004-ia-recomienda-persona-aprueba.md)), en el commit `2d21c28`.

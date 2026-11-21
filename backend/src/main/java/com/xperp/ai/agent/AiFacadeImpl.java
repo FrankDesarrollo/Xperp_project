@@ -11,6 +11,7 @@ import com.xperp.sales.api.SalesOrderDto;
 import com.xperp.sales.api.SalesService;
 import com.xperp.shared.persistence.PageResult;
 import java.time.Clock;
+import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -34,6 +35,7 @@ class AiFacadeImpl implements AiFacade {
   private final ApprovalService approvals;
   private final PurchasingService purchasing;
   private final SalesService sales;
+  private final FinancialAdvisor financial;
   private final Clock clock;
   private final ReentrantLock replenishmentLock = new ReentrantLock();
 
@@ -48,6 +50,7 @@ class AiFacadeImpl implements AiFacade {
       ApprovalService approvals,
       PurchasingService purchasing,
       SalesService sales,
+      FinancialAdvisor financial,
       Clock clock) {
     this.policyDefaults = policyDefaults;
     this.settings = settings;
@@ -59,6 +62,7 @@ class AiFacadeImpl implements AiFacade {
     this.approvals = approvals;
     this.purchasing = purchasing;
     this.sales = sales;
+    this.financial = financial;
     this.clock = clock;
   }
 
@@ -77,6 +81,24 @@ class AiFacadeImpl implements AiFacade {
   public void onDayStarted(LocalDate day) {
     inventoryAgents.updateParams(day, true);
     inventoryAgents.slowMovers(day);
+    // Finanzas: revisión programada los lunes; los demás días las reglas solo miran si apareció
+    // una condición grave y, únicamente entonces, se corre la revisión (ADR 0004).
+    safely(
+        () -> {
+          if (day.getDayOfWeek() == DayOfWeek.MONDAY) {
+            financial.review("financial_review_weekly", day);
+          } else {
+            financial.checkConditions(day);
+          }
+        });
+  }
+
+  private static void safely(Runnable review) {
+    try {
+      review.run();
+    } catch (RuntimeException e) {
+      log.warn("La revisión financiera falló: {}", e.getMessage());
+    }
   }
 
   @Override
@@ -114,6 +136,9 @@ class AiFacadeImpl implements AiFacade {
   @Override
   public void onDayEnded(LocalDate day) {
     summary.summarize(day);
+    if (day.equals(day.withDayOfMonth(day.lengthOfMonth()))) {
+      safely(() -> financial.review("month_close", day));
+    }
   }
 
   @Override
@@ -138,7 +163,11 @@ class AiFacadeImpl implements AiFacade {
       for (Approval a : approvals.pending()) {
         if (a.getRequestedAt().isBefore(oldEnough)) {
           try {
-            approvals.approve(a.getId(), null, "admin", "Aprobador virtual (SIM_AUTO_APPROVE)");
+            approvals.approve(
+                a.getId(),
+                null,
+                "admin",
+                "Persona simulada (SIM_AUTO_APPROVE): aprueba en nombre de un usuario");
           } catch (RuntimeException e) {
             log.debug("Aprobación virtual de #{} falló: {}", a.getId(), e.getMessage());
           }

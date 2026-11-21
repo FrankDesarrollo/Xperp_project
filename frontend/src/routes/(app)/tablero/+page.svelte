@@ -564,7 +564,7 @@
 										{DECISION_TYPE[d.decision_type] ?? d.decision_type} · {formatDateTime(
 											d.sim_time
 										)}
-										{#if d.impact?.amount}· {formatCop(d.impact.amount)}{/if}
+										{#if d.amount}· {formatCop(d.amount)}{/if}
 									</span>
 								</div>
 								<Badge tone={st.tone}>{st.label}</Badge>

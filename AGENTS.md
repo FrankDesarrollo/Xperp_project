@@ -1,6 +1,6 @@
 # Xperp: contexto del proyecto
 
-Xperp (Expert ERP) es un SaaS de gestión empresarial en el que la IA analiza la operación, recomienda decisiones con su impacto económico y operativo, y les hace seguimiento. Las acciones con impacto financiero o sobre el inventario las aprueba una persona (ADR 0004). La IA no corre todo el tiempo: se activa con eventos, condiciones, revisiones programadas o cuando el usuario la pide. El caso de uso es una distribuidora de productos de consumo masivo. Cuando las ventas bajan el inventario, el sistema calcula cuánto comprar, recomienda el proveedor, deja la orden lista para aprobación, avisa a bodega qué preparar, genera la guía de despacho y deja registro de por qué tomó cada decisión.
+Xperp (Expert ERP) es un SaaS de gestión empresarial en el que la IA analiza la operación, el inventario y las finanzas, prepara las decisiones y les hace seguimiento. Lo que mueve dinero o activos lo aprueba una persona: la IA recomienda, explica por qué y muestra el impacto económico u operativo. El caso de uso es una distribuidora de productos de consumo masivo. Cuando las ventas bajan el inventario, el sistema calcula cuánto comprar, elige proveedor y deja la orden lista para que Compras la apruebe; después la envía, avisa a bodega qué preparar, propone la guía de despacho y deja registro de por qué tomó cada decisión. La IA no corre todo el tiempo: se activa cuando pasa algo, cuando se cruza una condición, cuando alguien lo pide o en revisiones programadas (ADR 0004).
 
 Es un proyecto académico de dos personas, con datos demo. La arquitectura, en cambio, debe permitir pasar de MVP a producto comercial sin reescribirlo.
 
@@ -10,12 +10,13 @@ Este archivo es la fuente de contexto para el equipo y para cualquier agente de 
 
 ## 1. Principios del producto
 
-1. La IA es parte del flujo. Si se apaga, el ERP sigue funcionando, pero alguien tiene que hacer a mano lo que ella hacía.
+1. La IA es parte del flujo. Si se apaga, el ERP sigue funcionando, pero alguien tiene que hacer a mano lo que ella preparaba.
 2. Cada decisión es trazable: qué datos vio, qué alternativas tenía, qué eligió, por qué y quién la aprobó.
 3. La IA propone, el backend valida y la política decide. El LLM nunca toca la base de datos.
-4. Hay supervisión humana: la IA recomienda, explica por qué e indica el impacto, y una persona autorizada aprueba toda acción con impacto financiero o sobre el inventario (compras, reasignaciones, cancelaciones, traslados, ajustes y planes de presupuesto). También hay niveles de autonomía para lo operativo, umbrales de monto, kill switch y modo sombra (ADR 0004).
-5. El sistema arranca con una empresa demo completa y opera solo. Nadie tiene que cargar datos para que la demo funcione.
-6. Las reglas determinísticas resuelven lo que tiene respuesta exacta. El LLM se usa cuando hay que elegir entre opciones, manejar excepciones o explicar. La IA no queda corriendo: el sistema detecta las condiciones (stock bajo el punto de reorden, conteo con diferencia, alza de precio) y solo entonces activa el análisis. También se activa en revisiones programadas o cuando el usuario la pide.
+4. Hay supervisión humana configurable: niveles de autonomía, umbrales de monto, kill switch y modo sombra. Lo que mueve o compromete dinero o activos (OC, reasignaciones, cancelaciones, traslados, ajustes, planes de presupuesto y guías) siempre lo aprueba una persona; esa regla está en el código y no se configura (`PolicyEngine.HUMAN_APPROVAL_ACTIONS`).
+5. El sistema arranca con una empresa demo completa. Nadie tiene que cargar datos para que la demo funcione. Lo operativo corre solo; lo financiero espera aprobación, y para dejar la demo corriendo sin público está el aprobador simulado (`SIM_AUTO_APPROVE=true`), que hace de persona.
+6. La IA se usa cuando aporta y no como un gasto permanente: cada decisión dice qué la activó (evento, condición, solicitud o revisión programada) y si usó el LLM, y IA → Decisiones muestra llamadas, tokens y costo.
+7. Las reglas determinísticas resuelven lo que tiene respuesta exacta. El LLM se usa cuando hay que elegir entre opciones, manejar excepciones o explicar.
 
 ---
 
@@ -244,12 +245,12 @@ Vive en `backend/src/main/resources/demo/scenarios.yml` y lo ejecuta el módulo 
 
 | Día | Evento | Qué debe hacer Xperp |
 |---|---|---|
-| 1 | Aceite 1 L y leche UHT en CAL-01 arrancan bajos | El ciclo diario recomienda las OC (la leche a PRV-03 por tiempo de entrega) con su impacto, y Compras las aprueba |
+| 1 | Aceite 1 L y leche UHT en CAL-01 arrancan bajos | El ciclo diario prepara las OC con su impacto y Compras las aprueba; la leche va a PRV-03 por tiempo de entrega |
 | 1 | Pañales en 0 en BOG-01 y con 40 días en CAL-01 | Propone traslado en vez de comprar; pide aprobación |
 | 1 | Papel higiénico en CAL-01 por debajo del punto de reorden | Recomienda OC a PRV-06; Compras la aprueba |
 | 2 | Festivo | Baja la demanda; no hay compras de pánico |
-| 5 | PRV-06 reporta retraso de 4 días | Recomienda reasignar a PRV-09, explica el sobrecosto y pide aprobación |
-| 6 | PRV-02 rechaza una OC de arroz por falta de stock | Recomienda reasignar a PRV-01 y pide aprobación |
+| 5 | PRV-06 reporta retraso de 4 días | Propone reasignar a PRV-09 y muestra el sobrecosto; Compras decide |
+| 6 | PRV-02 rechaza una OC de arroz por falta de stock | Propone reasignar a PRV-01; Compras decide |
 | 10 | PRV-01 sube el café 18 % | Alerta de precio; vuelve a calificar proveedores para ese SKU |
 | 15 | Quincena | Pico de demanda; el pronóstico lo absorbe |
 | 15 | Conteo de detergente en CAL-01: el físico da 7 % menos que el kardex (1.170 por cada 1.260) | Alerta de discrepancia, ajuste pendiente de aprobación y tarea de reconteo |
@@ -361,7 +362,7 @@ PostgreSQL · Mailpit (SMTP local) · Ollama (opcional)
 2. `sales` reserva stock en `inventory`: `reserved` sube y `on_hand` no cambia.
 3. La IA crea las tareas de alistamiento y empaque y se las asigna al bodeguero de esa bodega (nivel 3).
 4. El bodeguero, real o virtual, inicia y termina cada tarea.
-5. Con el pedido empacado, la IA cotiza con las transportadoras que cubren la ciudad, elige una y genera la guía (nivel 2).
+5. Con el pedido empacado, la IA cotiza con las transportadoras que cubren la ciudad y propone una con su flete; Gerencia aprueba la guía (en lote, desde la bandeja) y se genera.
 6. Al despachar se registra la salida en el kardex: bajan `on_hand` y `reserved`.
 7. La transportadora actualiza el estado por webhook hasta la entrega.
 
@@ -372,8 +373,8 @@ PostgreSQL · Mailpit (SMTP local) · Ollama (opcional)
 3. Puntaje: se califica cada oferta de proveedor.
 4. Si una oferta gana con claridad, se decide por reglas y la justificación sale de plantilla. Si hay empate técnico, presupuesto insuficiente o una excepción, decide el agente LLM.
 5. Se consolidan los SKU que van al mismo proveedor en una sola OC, respetando el pedido mínimo.
-6. La capa de políticas decide si se ejecuta, va a aprobación o queda como sugerencia.
-7. Al ejecutarse, la OC se envía a `partners-mock` y se manda por correo al proveedor con el PDF adjunto.
+6. La capa de políticas manda la OC a aprobación con su impacto (monto, presupuesto, margen, ventas en riesgo y cobertura), o la deja como sugerencia en modo sombra. Las OC de un plan de presupuesto que Gerencia ya aprobó no piden una segunda aprobación.
+7. Al aprobarse, la OC se envía a `partners-mock` y se manda por correo al proveedor con el PDF adjunto.
 8. El proveedor responde por webhook: `confirmed`, `rejected`, `delayed`, `shipped` o `delivered`.
 9. Ante un rechazo o un retraso, la IA evalúa reasignar, esperar o cancelar.
 10. Con `delivered` se crea una tarea de recepción. Al completarla se registra la recepción y sube el stock.
@@ -634,7 +635,7 @@ Disponible = `on_hand - reserved`. En tránsito se calcula con las OC y traslado
 
 ### 6.8 IA y control
 - `demand_forecasts`: product_id, warehouse_id, forecast_date, quantity, model, generated_at
-- `ai_decisions`: id, decision_type, trigger_event, trigger_ref, input_snapshot (jsonb), alternatives (jsonb), proposed_action (jsonb), reasoning, confidence, impact (jsonb: monto, efecto económico y operativo, riesgo si se rechaza, efecto en el presupuesto), policy_result (`executed`, `pending_approval`, `suggested`, `blocked`), status, approved_by, executed_at, reverted_at, llm_used, llm_model, prompt_version, tokens_in, tokens_out, latency_ms, sim_time
+- `ai_decisions`: id, decision_type, trigger_event, trigger_ref, input_snapshot (jsonb), alternatives (jsonb), proposed_action (jsonb), reasoning, confidence, impact (jsonb: qué gasta, protege y arriesga), policy_result (`executed`, `pending_approval`, `suggested`, `blocked`), status, approved_by, approved_in_decision_id (aprobación heredada de un plan), executed_at, reverted_at, llm_used, llm_model, prompt_version, tokens_in, tokens_out, latency_ms, sim_time
 - `autonomy_policies`: id, action_type, level, min_amount, max_amount, approver_role, conditions (jsonb), is_enabled
 - `approvals`: id, ai_decision_id, requested_role, status, decided_by, decided_at, comment
 - `alerts`: id, type, severity, message, entity_type, entity_id, is_read
@@ -667,9 +668,9 @@ Disponible = `on_hand - reserved`. En tránsito se calcula con las OC y traslado
 | purchasing | `GET /suppliers`, `GET /suppliers/{id}/offers`, `GET POST /purchase-orders`, `GET /purchase-orders/{id}`, `POST /purchase-orders/{id}/send`, `POST /purchase-orders/{id}/cancel`, `GET /purchase-orders/{id}/pdf` |
 | logistics | `GET /warehouse-tasks?assigned_to=me&status`, `POST /warehouse-tasks/{id}/start`, `POST /warehouse-tasks/{id}/complete`, `GET /carriers`, `GET /shipments`, `GET /shipments/{id}/label` |
 | finance | `GET /budgets?period`, `GET /accounts-payable` |
-| ai | `GET /ai/decisions`, `GET /ai/decisions/{id}`, `POST /ai/decisions/{id}/revert`, `GET /approvals?status`, `POST /approvals/{id}/approve`, `POST /approvals/{id}/reject`, `GET PUT /ai/policies`, `GET PUT /ai/settings`, `GET /ai/recommendations?warehouse_id&product_id` |
+| ai | `GET /ai/decisions`, `GET /ai/decisions/{id}`, `POST /ai/decisions/{id}/revert`, `GET /approvals?status&decision_type`, `POST /approvals/{id}/approve`, `POST /approvals/{id}/reject`, `POST /approvals/batch-approve`, `GET PUT /ai/policies`, `GET PUT /ai/settings`, `GET /ai/recommendations?warehouse_id&product_id`, `GET /ai/usage?from&to`, `GET POST /ai/financial-reviews` |
 | assistant | `POST /assistant/messages`, `GET /assistant/conversations/{id}` |
-| dashboard | `GET /dashboard/kpis?from&to&warehouse_id`, `GET /dashboard/series?metric&from&to` |
+| dashboard | `GET /dashboard/kpis?from&to&warehouse_id`, `GET /dashboard/series?metric&from&to`, `GET /dashboard/finance?from&to` |
 | notifications | `GET /notifications`, `POST /notifications/{id}/read`, `GET /stream` (SSE) |
 | simulation | `GET /simulation/clock`, `POST /simulation/start`, `POST /simulation/pause`, `PUT /simulation/speed`, `POST /simulation/reset` |
 | webhooks | `POST /webhooks/suppliers`, `POST /webhooks/carriers` |
@@ -758,11 +759,11 @@ Hay empate técnico cuando la diferencia entre las dos primeras es menor a 0.05.
 
 | Tipo | Disparador | Acción | Nivel por defecto |
 |---|---|---|---|
-| `replenishment` | Ciclo diario o `StockBelowSafety` | `create_purchase_order` | 1; el aprobador depende del monto (9.2) |
-| `po_exception` | OC rechazada o retrasada | `reassign_purchase_order`, `cancel_purchase_order` o esperar | 1: `purchasing` si el sobrecosto es ≤ 10 %; si no, `manager` |
+| `replenishment` | Ciclo diario o `StockBelowSafety` | `create_purchase_order` | 1; el aprobador según monto (9.2) |
+| `po_exception` | OC rechazada o retrasada | `reassign_purchase_order`, `cancel_purchase_order` o esperar | 1 (Compras); esperar, 3 |
 | `stock_transfer` | Quiebre en una bodega y más de 30 días de cobertura en la otra | `propose_stock_transfer` | 1 (manager) |
 | `fulfillment` | `SalesOrderCreated` | `create_warehouse_task` | 3 |
-| `carrier_selection` | `SalesOrderPacked` | `create_shipment` | 2 |
+| `carrier_selection` | `SalesOrderPacked` | `create_shipment` | 1 (Gerencia, en lote) |
 | `demand_anomaly` | Línea de pedido 5 veces mayor que lo habitual en ese cliente y SKU | `hold_sales_order` + `raise_alert` | 2 |
 | `price_anomaly` | Cambio de costo mayor al 10 % | `raise_alert` y nueva calificación | 3 |
 | `inventory_discrepancy` | Conteo con diferencia mayor al 3 % | `raise_alert`, `create_warehouse_task(count)`, ajuste propuesto | Ajuste en 1 |
@@ -770,6 +771,7 @@ Hay empate técnico cuando la diferencia entre las dos primeras es menor a 0.05.
 | `budget_prioritization` | Presupuesto de la categoría por encima del 85 % | Reordenar OC pendientes por margen y cobertura | 1 |
 | `reorder_params_update` | Inicio del día simulado | `update_reorder_params` | 2 |
 | `daily_summary` | Fin del día simulado | Notificación a gerencia y compras | 3 |
+| `financial_review` | Lunes, cierre del mes, condición grave nueva o pedido de una persona | `send_financial_review`: hallazgos y recomendaciones a gerencia y compras (8.11) | 3 (solo informa) |
 | `assistant_answer` | Pregunta en el chat | Solo lectura | n/a |
 
 ### 8.5 Cuándo se usa el LLM
@@ -777,7 +779,8 @@ Hay empate técnico cuando la diferencia entre las dos primeras es menor a 0.05.
 Para que la demo sea rápida y barata, el LLM no participa en todo:
 
 - Sin LLM: reabastecimiento con ganador claro, tareas de bodega, transportadora con ganador claro, parámetros de reorden. La justificación sale de una plantilla con los números.
-- Con LLM: empates técnicos, rechazos y retrasos, anomalías, priorización por presupuesto, traslados, resumen diario y asistente.
+- Con LLM: empates técnicos, rechazos y retrasos, anomalías, priorización por presupuesto, traslados, resumen diario, resumen de la revisión financiera y asistente.
+- El impacto de cada propuesta (`ImpactAssessor`) y los hallazgos financieros (`FinanceRules`) los calculan las reglas, nunca el LLM.
 - Límite: `LLM_MAX_CALLS_PER_SIM_DAY` (30 por defecto). Si se pasa, se decide por reglas y queda marcado.
 - `LLM_PROVIDER=mock` usa `MockLlmGateway`: elige siempre la opción de mayor puntaje y redacta con plantilla. La demo tiene que funcionar completa en este modo.
 
@@ -796,6 +799,7 @@ Las tools de lectura devuelven datos. Las de escritura no ejecutan nada por su c
 | `quote_carriers(sales_order_id)` | lectura |
 | `query_kpis(metric, from, to, warehouse)` | lectura |
 | `list_recommendations(sku, warehouse)` | lectura |
+| `get_financial_overview()` | lectura |
 | `create_purchase_order(supplier, warehouse, items, reason)` | escritura |
 | `reassign_purchase_order(po_number, new_supplier, reason)` | escritura |
 | `cancel_purchase_order(po_number, reason)` | escritura |
@@ -824,11 +828,15 @@ Las tools de lectura devuelven datos. Las de escritura no ejecutan nada por su c
 
 ### 8.9 Asistente
 
-Responde preguntas como "¿qué se agota esta semana?", "¿qué me recomiendas reponer?", "¿hay exceso de inventario?", "¿por qué se le compró a Mayorista Central?" o "¿cuánto llevamos gastado en aseo?". Solo usa tools de lectura y nunca genera SQL. Se abre desde cualquier pantalla con el botón «Preguntar a la IA», y la conversación es la misma que en la pantalla Asistente.
+Responde preguntas como "¿qué se agota esta semana?", "¿qué me recomiendas reponer?", "¿hay exceso de inventario?", "¿por qué se le compró a Mayorista Central?", "¿cuánto llevamos gastado en aseo?" o "¿cómo van las finanzas?". Solo usa tools de lectura y nunca genera SQL. Se abre desde cualquier pantalla con el botón «Preguntar a la IA», y la conversación es la misma que en la pantalla Asistente.
 
 ### 8.10 Recomendaciones de inventario
 
 `GET /ai/recommendations` dice qué haría hoy el ciclo de reabastecimiento con cada existencia que necesita atención, y por qué: comprar (al proveedor con mejor puntaje y en la cantidad de `ReorderRules`), trasladar (si es urgente y otra bodega tiene más de 30 días), esperar la OC en camino, revisar una propuesta que espera aprobación, o no reponer por exceso. Usa las mismas reglas que el agente (`StockAdvice`, `ReorderRules`, `SupplierScorer`, el pronóstico y el plan de traslado), no ejecuta nada, no escribe en `ai_decisions` y no llama al LLM. No anticipa la consolidación por proveedor ni la priorización por presupuesto, que dependen del plan completo del día. Se ven en Inventario → Recomendaciones de la IA, en el detalle de cada existencia y, las urgentes, en el Tablero.
+
+### 8.11 Finanzas
+
+`GET /dashboard/finance` entrega las cifras del mes, calculadas con SQL de solo lectura y sin IA: ventas, costo, margen, fletes, compras recibidas y comprometidas, ventas perdidas, cuentas por pagar (abiertas, por vencer en 7 días y vencidas), inventario a costo, en exceso y estancado, y el presupuesto por categoría con su proyección al cierre (lo usado más lo que se repondría al ritmo de la demanda en los días que faltan). `FinanceRules` saca los hallazgos con su recomendación: presupuesto que se va a pasar o cerca del tope, pagos vencidos o por vencer, capital inmovilizado, fletes altos, ventas perdidas y margen bajo. `FinancialAdvisor` corre la revisión a pedido («Analizar ahora», `POST /ai/financial-reviews`), los lunes, al cierre del mes y cuando aparece un hallazgo grave que no se avisó en 7 días; esa revisión por condición la miran las reglas cada día sin llamar al LLM. El LLM, si está, solo redacta el resumen. La revisión queda en `ai_decisions` (`financial_review`) y no ejecuta nada. El modelo no tiene caja ni cartera de clientes: los ingresos son las ventas de pedidos válidos.
 
 ---
 
@@ -843,9 +851,7 @@ Responde preguntas como "¿qué se agota esta semana?", "¿qué me recomiendas r
 | 2 | Ejecuta y notifica |
 | 3 | Ejecuta sin notificar (bajo riesgo) |
 
-**Acciones protegidas (ADR 0004).** `create_purchase_order`, `reassign_purchase_order`, `cancel_purchase_order`, `propose_stock_transfer`, `adjust_inventory` y `apply_budget_plan` solo admiten nivel 0 o 1. `PolicyEngine` las trata como nivel 1 aunque la política diga otra cosa, y IA → Políticas no deja subirlas de nivel. Los niveles 2 y 3 quedan para lo operativo sin impacto financiero: alertas, tareas de bodega, recalificación, parámetros de reorden, resumen diario, guías de transporte (flete rutinario ya cotizado) y retención de pedidos anómalos (es la medida de protección; una persona libera el pedido o revierte la decisión).
-
-Cada recomendación muestra su impacto (`ai_decisions.impact`): el monto que compromete o libera, el efecto económico, el efecto operativo, qué pasa si se rechaza, el nivel de riesgo y el efecto en el presupuesto de cada categoría.
+Las acciones que mueven dinero o activos no pasan del nivel 1, aunque se configuren más alto: `PolicyEngine` las manda a aprobación e IA → Políticas no deja subirlas (ADR 0004).
 
 ### 9.2 Umbrales de órdenes de compra
 
@@ -855,12 +861,14 @@ Cada recomendación muestra su impacto (`ai_decisions.impact`): el monto que com
 | De 5.000.000 a 20.000.000 | Aprobación de `purchasing` |
 | Más de 20.000.000 | Aprobación de `manager` |
 
-Se editan desde **IA → Políticas** y se guardan en `autonomy_policies`.
+Se editan desde **IA → Políticas** (el rol aprobador y los montos; el nivel de estas acciones queda en 1) y se guardan en `autonomy_policies`. Las reasignaciones las aprueba Compras, las guías de despacho Gerencia, y los traslados, ajustes y planes de presupuesto Gerencia.
 
 ### 9.3 Otros controles
 
 - Presupuesto mensual por categoría y tope diario de compras de la IA.
 - Kill switch: todas las acciones de escritura quedan `blocked`.
+- Aprobación en lote (`POST /approvals/batch-approve`): cada aprobación se decide por separado; la que no le corresponde al rol o falla queda aparte sin frenar a las demás.
+- Medidor de la regla: `GET /ai/usage` cuenta las acciones financieras ejecutadas sin aprobación propia ni heredada. Tiene que ser 0.
 - Modo sombra: la IA decide pero nada se ejecuta; todo queda `suggested`. Sirve para medir cuánto acertaría frente a lo que hizo una persona.
 - Idempotencia: `idempotency_key = sha256(company, sku, warehouse, trigger_ref)` con restricción única, y no se crea una OC si ya hay otra abierta para el mismo SKU y bodega.
 - La IA no puede crear proveedores, cambiar precios pactados, borrar registros ni tocar usuarios.
@@ -897,7 +905,7 @@ Ventas del día y del mes, margen bruto, nivel de servicio (unidades despachadas
 
 - Generador de demanda: crea pedidos de venta a través de `SalesService`, como lo haría cualquier cliente.
 - Bodeguero virtual: toma las tareas pendientes y las completa entre 1 y 3 horas simuladas después. Si un usuario real abre una tarea, el bodeguero virtual la deja de lado.
-- Aprobador virtual: apagado por defecto (`SIM_AUTO_APPROVE=false`). En la presentación las aprobaciones se hacen en vivo.
+- Aprobador simulado: apagado por defecto (`SIM_AUTO_APPROVE=false`). Hace de persona, no de IA: aprueba lo pendiente con más de una hora simulada y lo firma como «Persona simulada». En la presentación las aprobaciones se hacen en vivo, en lote.
 
 ### 10.3 Guion
 
@@ -915,11 +923,12 @@ Ventas del día y del mes, margen bruto, nivel de servicio (unidades despachadas
 | Inventario | Lista con semáforo (quiebre, bajo, normal, exceso), filtros, recomendaciones de la IA, detalle con recomendación, kardex y pronóstico | todos |
 | Ventas | Pedidos, estados, pedidos retenidos para revisión | manager, admin, viewer |
 | Compras | OC por estado, línea de tiempo de cada OC, proveedores, ofertas y precios | purchasing, manager, admin |
+| Finanzas | Cifras del mes, presupuesto con proyección al cierre, último análisis de la IA con hallazgos y recomendaciones, «Analizar ahora» | admin, manager, purchasing, viewer |
 | Bodega | Tareas asignadas al usuario, botones grandes de iniciar y terminar, pensada para celular | warehouse |
 | Despachos | Envíos, estados, descarga de guías | warehouse, manager, admin |
-| IA → Decisiones | Bitácora con datos de entrada, alternativas, razonamiento, resultado de la política y reversión | todos (revertir: manager, admin) |
-| IA → Aprobaciones | Bandeja por rol con el razonamiento de la IA y botones de aprobar o rechazar con comentario | purchasing, manager |
-| IA → Políticas | Niveles por acción, umbrales, presupuestos, pesos del puntaje, kill switch, modo sombra | admin |
+| IA → Decisiones | Uso de la IA en el mes (disparadores, reglas frente a LLM, llamadas, tokens, costo y acciones financieras sin aprobación) y bitácora con impacto, datos de entrada, alternativas, razonamiento, resultado de la política y reversión | todos (revertir: manager, admin) |
+| IA → Aprobaciones | Bandeja por rol con el impacto y el razonamiento de la IA, filtro por tipo, aprobación en lote y botones de aprobar o rechazar con comentario | purchasing, manager |
+| IA → Políticas | Niveles por acción (las financieras, con candado en nivel 1), umbrales, presupuestos, pesos del puntaje, kill switch, modo sombra | admin |
 | Asistente | Chat de solo lectura; también se abre como panel desde cualquier pantalla | todos |
 | Simulación | Reloj, iniciar, pausar, velocidad, reiniciar, progreso del guion | admin |
 

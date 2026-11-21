@@ -11,17 +11,38 @@
 		approval: Approval;
 		canDecide: boolean;
 		busy?: boolean;
+		/** Si se puede marcar para aprobar en lote. */
+		selected?: boolean;
+		onselect?: (a: Approval, selected: boolean) => void;
 		onapprove: (a: Approval, comment: string) => void;
 		onreject: (a: Approval, comment: string) => void;
 	}
 
-	let { approval: a, canDecide, busy = false, onapprove, onreject }: Props = $props();
+	let {
+		approval: a,
+		canDecide,
+		busy = false,
+		selected = false,
+		onselect,
+		onapprove,
+		onreject
+	}: Props = $props();
 	let comment = $state('');
 	let expanded = $state(false);
 </script>
 
-<div class="approval">
+<div class="approval" class:selected>
 	<div class="head row">
+		{#if onselect && canDecide && a.status === 'pending'}
+			<label class="pick">
+				<input
+					type="checkbox"
+					checked={selected}
+					onchange={(e) => onselect(a, e.currentTarget.checked)}
+				/>
+				<span class="visually-hidden">Marcar para aprobar en lote: {a.decision.title}</span>
+			</label>
+		{/if}
 		<Badge tone="warning">Aprueba {ROLE_LABEL[a.requested_role] ?? a.requested_role}</Badge>
 		<span class="text-muted small"
 			>Pedida {formatDateTime(a.created_at)} · vence {formatDateTime(a.expires_at)}</span
@@ -76,6 +97,19 @@
 		background: var(--color-surface-muted);
 		border-radius: var(--radius-lg);
 		border: 1px solid var(--color-border);
+	}
+
+	.selected {
+		border-color: var(--color-primary);
+	}
+
+	.pick {
+		display: inline-flex;
+		align-items: center;
+		min-height: 2.75rem;
+		min-width: 2.75rem;
+		justify-content: center;
+		cursor: pointer;
 	}
 
 	.actions {
