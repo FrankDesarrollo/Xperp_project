@@ -610,7 +610,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 		] }
 	];
 	const PREPARACION = [
-		'Usen la versión integrada del 2026-11-21: <code>main</code> cuando se fusione, o mientras tanto la rama <code>feat/ai-integrate-adr0004</code>. Es la de Frank con la de Erick encima: guías en lote, impacto en pantalla, Finanzas y el panel de uso de la IA.',
+		'Usen <code>main</code> de GitHub desde el commit <code>a139acd</code> (2026-11-21): es la versión de Frank con la de Erick encima, con guías en lote, impacto en pantalla, Finanzas y el panel de uso de la IA. Antes de levantar, <code>git pull</code>.',
 		'Revisen en <code>.env</code> que <code>LLM_PROVIDER=mock</code> y <code>SIM_AUTO_APPROVE=false</code>: así las 46 propuestas del día 1 esperan a que ustedes las aprueben.',
 		'Si el puerto 5432 está ocupado (en el equipo de Erick lo está), agreguen <code>POSTGRES_PORT=5433</code> al <code>.env</code>.',
 		'Levanten con un nombre de proyecto nuevo para no chocar con la base de corridas anteriores: <code>docker compose -p xperp-m3 up -d --build</code>. La primera vez tarda varios minutos; háganlo antes de entrar. La aplicación queda en <code>http://localhost:3000</code> y el correo de prueba en <code>http://localhost:8025</code>.',
